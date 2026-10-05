@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup><EmbeddedResource Include="../../server/seeds/eset-sha256.json" LogicalName="Sentinel.BuiltinIndicators.json"/><EmbeddedResource Include="../../server/seeds/eset-provenance.json" LogicalName="Sentinel.BuiltinProvenance.json"/></ItemGroup></Project>

@@ -1,0 +1,59 @@
+<Window x:Class="Sentinel.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sentinel — Windows security" Width="1200" Height="820" MinWidth="960" MinHeight="680" Background="{DynamicResource CanvasSurface}"
+        KeyboardNavigation.TabNavigation="Cycle" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen" UseLayoutRounding="True" SnapsToDevicePixels="True">
+    <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="212"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+        <Border Background="{DynamicResource RailSurface}" BorderBrush="{DynamicResource RailBorder}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="12,20,12,14">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="12,0,0,10">
+                    <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="{DynamicResource RailBrand}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBlock Text="Sentinel" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource RailInk}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Border Height="1" Background="{DynamicResource RailHoverSurface}" Margin="4,8,4,8"/>
+                    <StackPanel x:Name="SettingsHost"/>
+                    <TextBlock Text="v0.6 · Development preview" FontSize="11" Foreground="{DynamicResource RailMuted}" Margin="12,10,0,0"/>
+                    <TextBlock x:Name="Footprint" FontSize="11" Foreground="{DynamicResource RailMuted}" Margin="12,2,0,0"
+                               ToolTip="Working set of this window process. Microsoft Defender and AI providers are excluded."/>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,2" AutomationProperties.Name="Page navigation">
+                    <StackPanel x:Name="Navigation"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Border BorderBrush="{DynamicResource SeparatorSurface}" BorderThickness="0,0,0,1" Padding="36,22,28,16">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock x:Name="PageTitle" Text="Home" Focusable="True" KeyboardNavigation.IsTabStop="False" FontSize="26" FontWeight="SemiBold" AutomationProperties.HeadingLevel="Level1"/>
+                        <TextBlock x:Name="PageSubtitle" FontSize="13" Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <!-- Session privilege is chrome, not page content. -->
+                    <Border x:Name="PrivilegeChip" Grid.Column="1" Style="{StaticResource Chip}" Tag="Neutral" VerticalAlignment="Top" Margin="16,6,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="PrivilegeGlyph" Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="11" Style="{StaticResource ChipText}" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="Privilege" Style="{StaticResource ChipText}" FontWeight="Normal"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+            <ScrollViewer x:Name="PageScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" Padding="36,20,28,24" CanContentScroll="False">
+                <StackPanel x:Name="PageBody" MaxWidth="1100"/>
+            </ScrollViewer>
+            <Border Grid.Row="2" Background="{DynamicResource StatusSurface}" BorderBrush="{DynamicResource SeparatorSurface}" BorderThickness="0,1,0,0" Padding="36,8,28,8">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="60" VerticalAlignment="Center">
+                        <TextBlock x:Name="Status" Text="Starting Sentinel…" FontSize="12" Foreground="{DynamicResource Muted}" AutomationProperties.LiveSetting="Polite" AutomationProperties.HelpText="Status of the current Sentinel operation"/>
+                    </ScrollViewer>
+                    <Button x:Name="StopOperation" Grid.Column="2" Content="Stop waiting" Style="{StaticResource Quiet}" Visibility="Collapsed" Margin="16,0,0,0" MinHeight="28" AutomationProperties.HelpText="Requests cancellation. Windows operations may continue independently."/>
+                    <ProgressBar x:Name="BusyProgress" Grid.Row="1" Grid.ColumnSpan="3" Height="2" Margin="0,6,0,0" Visibility="Collapsed" BorderThickness="0" Foreground="{DynamicResource Accent}" Background="{DynamicResource SeparatorSurface}" AutomationProperties.Name="Operation in progress"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

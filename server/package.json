@@ -1,0 +1,8 @@
+{
+  "name": "sentinel-threat-server",
+  "version": "0.6.1",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node cli.mjs serve", "init": "node cli.mjs init", "test": "node --test test/*.test.mjs" }
+}

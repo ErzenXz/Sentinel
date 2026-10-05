@@ -1,0 +1,30 @@
+name: Windows preview
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        runtime: [win-x64, win-arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Server tests
+        run: npm --prefix server test
+      - name: Test and package
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Runtime ${{ matrix.runtime }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Sentinel-${{ matrix.runtime }}
+          path: artifacts/Sentinel-*-${{ matrix.runtime }}.zip
+          if-no-files-found: error

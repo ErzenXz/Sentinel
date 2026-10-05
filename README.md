@@ -1,0 +1,90 @@
+# Sentinel
+
+MIT-licensed native Windows security application, with an independent local scanner, self-hostable intelligence server, Windows protection controls, and optional AI explanations.
+
+**v0.6.1 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
+
+## New in v0.6.1
+
+- **A complete native redesign:** charcoal navigation, warm light surfaces, restrained green actions, compact status rows and cleaner results. Settings stays pinned; the minimum window remains 960 × 680.
+- **Home starts with scanning:** scan a file or folder, review compact Windows protection rows, and open your latest saved scan. Windows readings have timestamps; unknown settings and stale threat lists stay explicit.
+- **Results are easier to review:** plain-language verdicts, full selected evidence, copy SHA-256, helpful empty states, and selection-aware quarantine, restore, report and firewall actions.
+- Monitoring, scheduling, threat-list details and optional Jev review use expandable sections. Everyday preferences and provider/server connections live in Settings; setup links open the right section directly.
+- A global busy indicator and Stop waiting action, keyboard shortcuts, focus outlines, named inputs and coalesced status announcements. Scan progress replaces one pending slot and updates the UI at most five times per second, plus its final flush.
+
+Claude Opus 5.5 implemented the visual redesign through the requested CLI. The UI remains WPF/C#; no Claude runtime is embedded. Native rendering and accessibility checks still require Windows. See [v0.6.1 release notes](docs/RELEASE-0.6.1.md) and [UI design and shortcuts](docs/UI-DESIGN.md).
+
+## Included from v0.5
+
+- **Fast local firewall review** groups bounded TCP evidence by process and flags disabled/unknown profiles, inbound defaults, non-loopback listeners, missing identities and signature issues. One on-demand Windows capture replaces repeated requests; signatures are inspected only for the selected app.
+- **Jev structured decisions** through TypeSafe directly or Vercel Gateway's TypeSafe-compatible API. This is a separate optional API-key connection, with a five-second deadline, strict probability validation and a categories/counts preview. User-approved reviews have no model tools or automatic firewall actions.
+- A small native review host serializes requests and reuses identical successful decisions for two minutes, with a 128-entry in-memory cap. Failures require manual review and cannot erase local warnings.
+- New CLI network snapshot/review and Jev commands, plus a repeatable synthetic local-policy benchmark.
+
+See [firewall review](docs/FAST-FIREWALL.md) and [Jev/fx research](docs/JEV-FX-RESEARCH.md). Sentinel retains its WPF/C# runtime: no JavaScript agent runtime, fx binary, or model weights are bundled.
+
+## Included from v0.4
+
+- Opt-in **close-to-tray**, count-only detection notifications, and resuming your selected monitoring folder when you reopen Sentinel.
+- Opt-in **signed-feed checks** immediately and every six hours while the app runs. Checks run sequentially and retain the verified cache on failure.
+- Search and verdict filters for findings, plus scan-history status filters. Filtering preserves original evidence and report totals.
+- **Model discovery** for Ollama, OpenAI-compatible providers/LM Studio, and Anthropic. Listing uses metadata-only requests; it makes no inference request and sends no security snapshot.
+- System high-contrast colors, wrapping action rows, and a single interactive session with tray-window activation. Exit requests cancellation and waits for the active operation to settle.
+
+See [session preferences](docs/SESSION-PROTECTION.md). All new background options start disabled. There is no login startup entry or Windows service.
+
+## Included from v0.3
+
+- **Bounded ZIP content scanning**, including nested archives and ZIP-based documents/packages. No files are extracted to disk. Encryption, unsupported formats, malformed metadata, corrupt CRCs, and budget limits remain explicit incomplete results.
+- **Whole-archive quarantine** after user confirmation, a fresh contained detection, and a matching container hash. The encrypted backup restores the entire original archive.
+- **Scan reports** page with import/export, automatic retention of the latest 30 manual/scheduled reports, and partial results when a running scan is canceled. File and archive-entry counts are separate.
+- **Stronger folder monitoring**: rewrites during a scan are queued again, settled bursts avoid a delay for every file, own storage is excluded before reads, and queue/missed-event counters are visible.
+- **Daily schedule status** with next/last run and result codes. Scheduling also works offline with bundled intelligence, without configuring a server first.
+- **Server source health**: publication age, source counts, refresh attempts/last success/failure, and detection of interrupted publication state. Failed upstream refreshes preserve the signed corpus and do not record secrets or upstream error bodies.
+
+The v0.2 foundation remains: 6,113 bundled ESET public research indicators with provenance/BSD notice, a self-hostable Node/Docker server, pinned RSA-3072 feeds with expiry/anti-rollback, metadata-only ESET/MalwareBazaar imports, suppression of false positives, streaming local SHA-256, AES-256-GCM/DPAPI quarantine, and a standalone scanner. AI explanations stay optional, with a sanitized sharing preview.
+
+Existing capabilities include Defender quick/full/custom scans and intelligence updates, protection status and threat history, process/publisher/signature inspection, TCP snapshots, reversible outbound app firewall blocks, local activity records, encrypted API keys, and AI connections for APIs, Ollama/LM Studio, Anthropic, and experimental official Codex app-server access.
+
+## Run on Windows
+
+Extract **all files** from the appropriate v0.6.1 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
+
+Open **File scanner** to scan a file/folder immediately using the bundled public indicator snapshot. Open **Quarantine** to review backups. Use a standard Windows user session for independent file remediation and AI. Windows Firewall/Defender operations can require Settings → About Sentinel & administrator tools → Restart as administrator. AI and personal-file quarantine/restore are disabled in elevated sessions.
+
+Our scanner reports no-known-match, review, detected, skipped, and error separately. A no-known-match result does not prove safety. ZIP contents are inspected within strict budgets; encrypted, unsupported, over-budget or unreadable contents remain incomplete. Monitoring observes changes after they happen and stops when you exit Sentinel; opt-in tray mode keeps it running after closing the window. Defender continues its own background protection.
+
+## Run your own server
+
+```sh
+cd server
+node cli.mjs init
+node cli.mjs sync-eset
+node cli.mjs serve
+```
+
+Requires Node.js 22+. Copy only `data/public.pem` to the Windows PC, pin it in Settings → Threat list & trusted server, and download the signed feed. Use HTTPS for a remote server. See [server setup and Docker](server/README.md). The bundled public IOC snapshot needs no server/API key. MalwareBazaar ingestion requires the operator's own key and compliance with its provider terms.
+
+## Build and test
+
+With .NET 10 SDK installed:
+
+```sh
+dotnet build src/Sentinel.App -c Release
+dotnet run --project tests/Sentinel.Tests -c Release
+npm --prefix server test
+dotnet build src/Sentinel.Cli -c Release
+node scripts/verify-engine.mjs
+```
+
+The portable engine tests and real HTTP interoperability test run on macOS/Linux too. WPF compiles with Windows targeting enabled; its native UI and OS operations must run on Windows. Use `scripts/publish.ps1 -Runtime win-x64` or `win-arm64` on Windows to package both executables.
+
+## Design and limits
+
+No Electron, embedded browser, telemetry, or bundled LLM. The own scanner uses one worker, pooled buffers, and bounded result queues. Monitoring/schedules are opt-in. Defender, AI runtimes, and the app consume separate resources; Windows performance comparisons have not been made.
+
+A hash list detects exact published files and misses changed/new malware. We do not yet have kernel-enforced execution blocking, broad archive-format coverage, ransomware behavioral blocking, a protected service, or AV certification. These require sustained engineering and independent evaluation.
+
+Read [v0.6.1 release notes](docs/RELEASE-0.6.1.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
+
+Sentinel code is MIT licensed. Embedded ESET indicator data remains BSD two-clause licensed; ESET does not endorse Sentinel. No OpenClaw source code or third-party malware binaries are bundled.

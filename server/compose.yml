@@ -1,0 +1,20 @@
+services:
+  threat-server:
+    build: .
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      SENTINEL_AUTO_SYNC: eset
+      SENTINEL_REFRESH_HOURS: 24
+    volumes:
+      - sentinel-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+volumes:
+  sentinel-data:

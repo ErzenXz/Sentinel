@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "description": "Synthetic warmed local policy evaluation only; excludes Windows capture, UI, scanning, AI and startup.",
+  "os": "macOS 27.0.1",
+  "architecture": "Arm64",
+  "dotnet": "10.0.12",
+  "iterations": 1000,
+  "connections": 1000,
+  "applications": 250,
+  "medianMilliseconds": 0.5867,
+  "p95Milliseconds": 2.2014,
+  "allocatedBytesPerEvaluation": 283209
+}
