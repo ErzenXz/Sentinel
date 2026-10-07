@@ -6,6 +6,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Formats.Tar;
 using System.Reflection;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
@@ -194,6 +195,8 @@ internal static partial class Program
     {
         Check("Version label follows the actual application build", Field<TextBlock>(window, "VersionLabel").Text
             == $"v{typeof(MainWindow).Assembly.GetName().Version?.ToString(2)} · Development preview");
+        Check("Default startup creates no optional HTTP client or Jev review cache", !Field<Lazy<HttpClient>>(window, "networkClient").IsValueCreated
+            && typeof(MainWindow).GetField("decisionReviews", Private)!.GetValue(window) is null);
         Stage("Checking startup cancellation");
         await Until(() => Field<bool>(window, "busy"), "Startup fixture refresh did not begin");
         Check("Busy startup disables page actions while cancellation and navigation remain reachable",
@@ -261,6 +264,8 @@ internal static partial class Program
         Stage("Checking streamed archive results"); await VerifyStreamArchives(window, profile);
         Stage("Checking local scan controls"); await VerifyScanControls(window, profile);
         Stage("Checking scanner view retention"); await VerifyRetention(window);
+        Check("Offline scanning and navigation leave optional networking unallocated", !Field<Lazy<HttpClient>>(window, "networkClient").IsValueCreated
+            && typeof(MainWindow).GetField("decisionReviews", Private)!.GetValue(window) is null);
         await Navigate(window, "Home");
         Status(window, "Native Windows verification • harmless fixture data • no real protection setting was changed.");
         if (profileRun) idle = await SampleResources(window, "immediately-after-verification", 3000);

@@ -180,7 +180,8 @@ public partial class MainWindow
         catch (Exception) { /* Shutdown still releases the window and network resources. */ }
         if (operationFinished is { } pending) await pending.Task;
         ReleasePage();
-        http.Dispose(); Close();
+        if (networkClient.IsValueCreated) networkClient.Value.Dispose();
+        Close();
     }
     private void SessionPreferencesCard()
     {

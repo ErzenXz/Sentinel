@@ -1,0 +1,11 @@
+# Sentinel v0.12.0 — easier installation and native ARM64 verification
+
+Sentinel gains per-user Windows setup and uninstall packages for x64 and ARM64, with a Start-menu shortcut and Windows Apps entry. The native application/scanner and self-contained runtime are installed without UAC, a background service, login startup or enabling optional features. Portable ZIPs remain available. Setup uses a pinned, digest-checked and Authenticode-checked Inno compiler; Sentinel packages remain unsigned previews.
+
+The window and scanner hold a cooperative cross-session installation marker until process exit. Setup and uninstall hold an atomic transition marker and refuse to change a running installation. Downgrades from a newer recorded version are blocked; same-version repair and upgrades preserve user state. Uninstall keeps history, settings, encrypted credentials, quarantine, untracked program-directory files and explicit firewall rules. It removes only the current user's matching task for this scanner path. Failed task cleanup stops removal before deleting program files.
+
+Optional HTTP transport and the Jev review cache now initialize when first used. Offline startup, page navigation and local scanning avoid constructing them. No polling worker is added by installer coordination. No numerical whole-app memory or performance claim is made.
+
+Release gates run core/server tests, packaging and a standard-user installation lifecycle on matching native Windows x64/ARM64 hosts. Both native WPF jobs render the real interface, check action/selection/layout behavior, verify actual process architecture, ensure discarded scanner views are not retained and confirm optional network clients remain unallocated during offline use. The installer fixture uses a Unicode user profile and verifies payload digests, scan/history, DPAPI preservation, repair/upgrades/downgrades, running-app guards, task ownership/cleanup failure and removal/reinstall.
+
+See [installation and removal](INSTALLATION.md), [native UI checks](NATIVE-UI-VERIFICATION.md) and [performance evidence](PERFORMANCE.md). Supported-hardware testing, broader Defender/firewall/UAC enforcement, signing, a scoped privileged broker, service/minifilter and independent detection/false-positive evaluation remain open. Keep Defender enabled.

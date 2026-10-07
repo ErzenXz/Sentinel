@@ -11,6 +11,9 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         if (verificationStartup) { base.OnStartup(e); return; }
+        try { Sentinel.Core.InstallationLease.EnsureHeld(); }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        { MessageBox.Show(ex.Message, "Sentinel installation"); Shutdown(); return; }
         instance = new ProfileInstance();
         if (!instance.Acquire(e.Args.Contains("--wait-for-profile")))
         {

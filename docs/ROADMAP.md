@@ -1,6 +1,6 @@
 # Roadmap
 
-## Delivered through v0.11
+## Delivered through v0.12
 
 Native Windows UI; independent hash scanning with a bundled public IOC snapshot; self-hostable signed feeds; ESET refresh and optional MalwareBazaar metadata import; conservative review patterns; chunked authenticated quarantine/restore; best-effort folder monitoring; scheduled offline scans; CLI; Defender/Firewall controls; configurable AI explanations; bounded ZIP/nested scanning, whole-container confirmation, retained/importable scan reports and partial cancellation, generation-aware monitoring, schedule status, source refresh health, and security-focused portable/server/interoperability tests. v0.4 adds opt-in tray persistence, count-only notifications, folder resume, six-hour signed-feed checks, finding/history filters, model metadata discovery, high-contrast resources and session/shutdown coordination. v0.5 adds bounded one-shot TCP/profile/process capture, deterministic firewall review, selected-only publisher inspection with identity revalidation, optional Jev typed decisions, a bounded single-flight review cache, native C# hosting informed by fx research, and CLI review/benchmark commands.
 
@@ -18,8 +18,10 @@ v0.11 adds bounded streaming V7/ustar TAR and GZIP/TGZ inspection, mixed archive
 
 ## Next release gates
 
+v0.12 adds per-user setup/uninstall, cooperative process/transition guards, repair/version checks, preserved local data, scoped scheduled-task cleanup, disposable standard-user lifecycle verification, native ARM64 WPF/build gates and deferred optional HTTP/Jev construction. Signing and privileged background protection remain open.
+
 1. Run the Windows acceptance matrix on x64/ARM64: native rendering, Defender interactions, exclusive handles/deletion, DPAPI recovery, UAC, Task Scheduler, junctions/ADS, policy-managed devices, and failed operations.
-2. Sign releases, add installer/uninstaller and a narrowly scoped privileged broker, and secure update integrity/key rotation. Add private vulnerability reporting.
+2. Sign releases, add a narrowly scoped privileged broker, and secure update integrity/key rotation. Add private vulnerability reporting.
 3. Benchmark Windows startup, idle CPU/memory, large/small-file throughput, monitoring bursts, and total overhead alongside Defender and local AI runtimes. Publish repeatable results before comparative claims.
 4. Expand threat intelligence with provenance, false-positive review, source health, freshness measurement, revocation distribution, and evaluated content rules. Audit/fuzz the bounded ZIP parser and expand archive formats and evaluated content rules. ZIP64, encrypted and unsupported archive contents remain explicit coverage gaps.
 5. Validate accessibility/high-contrast rendering and tray/notification behavior on Windows; evaluate Jev firewall decisions on a labeled corpus, expand native network evidence and add multi-profile encrypted credentials.

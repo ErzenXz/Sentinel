@@ -6,10 +6,15 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
     strategy:
       matrix:
-        runtime: [win-x64, win-arm64]
+        include:
+          - runtime: win-x64
+            runner: windows-latest
+          - runtime: win-arm64
+            runner: windows-11-arm
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -26,10 +31,25 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Sentinel-${{ matrix.runtime }}
-          path: artifacts/Sentinel-*-${{ matrix.runtime }}.zip
+          path: |
+            artifacts/Sentinel-*-${{ matrix.runtime }}.zip
+            artifacts/Sentinel-*-${{ matrix.runtime }}-setup.exe
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Installer-${{ matrix.runtime }}
+          path: artifacts/installer-verification/${{ matrix.runtime }}
+          if-no-files-found: warn
   ui:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - architecture: X64
+            runner: windows-latest
+          - architecture: Arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -38,10 +58,15 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Native WPF verification
         run: dotnet run --project tests/Sentinel.UiTests -c Release -- --output artifacts/native-ui
+      - name: Verify native execution architecture
+        shell: pwsh
+        run: |
+          $report = Get-Content artifacts/native-ui/verification.json -Raw | ConvertFrom-Json
+          if ($report.architecture -ne '${{ matrix.architecture }}') { throw 'Native execution architecture mismatch' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Native-UI
+          name: Native-UI-${{ matrix.architecture }}
           path: artifacts/native-ui
           if-no-files-found: error
   release:
@@ -64,5 +89,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           release_version="${GITHUB_REF_NAME#v}"
-          gh release create "$GITHUB_REF_NAME" artifacts/Sentinel-"$release_version"-*.zip "artifacts/SHA256SUMS-v$release_version.txt" \
+          gh release create "$GITHUB_REF_NAME" artifacts/Sentinel-"$release_version"-*.zip artifacts/Sentinel-"$release_version"-*-setup.exe "artifacts/SHA256SUMS-v$release_version.txt" \
             --verify-tag --prerelease --title "Sentinel $GITHUB_REF_NAME" --notes-file "docs/RELEASE-$release_version.md"

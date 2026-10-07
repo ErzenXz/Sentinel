@@ -17,6 +17,8 @@ Copy-Item (Join-Path $root 'server/test') (Join-Path $output 'server') -Recurse 
 Copy-Item (Join-Path $root 'server/seeds') (Join-Path $output 'server') -Recurse -Force
 $project = [xml](Get-Content -LiteralPath (Join-Path $root 'src/Sentinel.App/Sentinel.App.csproj') -Raw)
 $version = [string]$project.Project.PropertyGroup.Version
+& (Join-Path $PSScriptRoot 'build-installer.ps1') -Runtime $Runtime -PayloadDirectory $output -Version $version
+& (Join-Path $PSScriptRoot 'test-installer.ps1') -SetupPath (Join-Path $root "artifacts/Sentinel-$version-$Runtime-setup.exe") -Version $version -Runtime $Runtime
 $archive = Join-Path $root "artifacts/Sentinel-$version-$Runtime.zip"
 Compress-Archive -Path (Join-Path $output '*') -DestinationPath $archive -Force
 Get-FileHash $archive -Algorithm SHA256

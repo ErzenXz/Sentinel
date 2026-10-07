@@ -13,9 +13,9 @@ public partial class MainWindow
     private NetworkSnapshot? networkSnapshot;
     private IReadOnlyList<NetworkAppReview> networkApps = [];
     private DecisionReviewService? decisionReviews;
+    private DecisionReviewService DecisionReviews => decisionReviews ??= new(new JevClient(http));
     private void InitializeNetworkReview()
     {
-        decisionReviews = new(new JevClient(http));
         try { var connection = LocalStore.LoadDecision(); decisionSettings = connection.Settings; decisionKey = connection.Key; }
         catch (Exception) { decisionSetupError = "Saved Jev connection could not be read. Reconfigure it in Settings."; }
     }
@@ -110,7 +110,7 @@ public partial class MainWindow
             if (consent.IsChecked != true) { StatusText = "Review the displayed payload and select the sharing option first."; return; }
             var settings = decisionSettings; var credential = decisionKey;
             _ = Run("Jev firewall decision", async token => {
-                var result = await decisionReviews!.ReviewAsync(settings, credential, app.Evidence, token);
+                var result = await DecisionReviews.ReviewAsync(settings, credential, app.Evidence, token);
                 if (!Fresh()) { answer.Text = "Evidence aged out while reviewing. Refresh and review again."; return; }
                 if (selected != app) return;
                 answer.Text = $"Priority: {result.Priority} · {(result.Cached ? "reused identical review" : "new review")}\n{result.Status}";
@@ -145,7 +145,7 @@ public partial class MainWindow
             try {
                 var next = new DecisionSettings((DecisionProvider)provider.SelectedItem, endpoint.Text.Trim(), model.Text.Trim());
                 LocalStore.SaveDecision(next, password.Password); decisionSettings = next; decisionKey = password.Password;
-                decisionSetupError = null; decisionReviews = new(new JevClient(http));
+                decisionSetupError = null; decisionReviews = null;
                 StatusText = "Jev connection saved. Open Firewall, refresh local evidence and opt in to a selected review.";
             } catch (Exception ex) { StatusText = ex.Message; }
         }, true)));

@@ -1,0 +1,7 @@
+Sentinel is an unsigned development preview.
+
+It checks files locally against known threat hashes and helps you review Windows protection. It does not yet replace a tested full antivirus product. Keep Microsoft Defender enabled.
+
+Setup installs for your account, adds a Start-menu shortcut and registers an uninstaller in Windows Settings. It does not enable automatic startup, monitoring, notifications, AI, or server connections.
+
+Uninstall removes installed program files and this installation's daily scan. Your Sentinel settings, scan history, encrypted credentials, quarantine, and explicitly configured firewall blocks are preserved.

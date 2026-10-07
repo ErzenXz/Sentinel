@@ -15,7 +15,8 @@ namespace Sentinel.App;
 public partial class MainWindow : Window
 {
     private readonly WindowsSecurity security;
-    private readonly HttpClient http = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromMinutes(3) };
+    private readonly Lazy<HttpClient> networkClient = new(() => new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromMinutes(3) });
+    private HttpClient http => networkClient.Value;
     private readonly CancellationTokenSource lifetime = new();
     private CancellationTokenSource? operation;
     private TaskCompletionSource? operationFinished;

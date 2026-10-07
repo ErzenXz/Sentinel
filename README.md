@@ -2,9 +2,18 @@
 
 MIT-licensed native Windows security application, with an independent local scanner, self-hostable intelligence server, Windows protection controls, and optional AI explanations.
 
-**v0.11.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
+**v0.12.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
 
-## New in v0.11.0
+## New in v0.12.0
+
+- **Simple per-user installation:** architecture-specific Windows setup, Start-menu shortcut, Windows uninstall entry and same-version repair. No elevation, login startup entry or automatic monitoring/AI activation is added.
+- **Safer removal and upgrades:** running windows and scanners block changes; newer installed versions block downgrades. Removal preserves the local profile, history, encrypted credentials, quarantine and untracked files. Only a matching scheduled scan owned by this installation is removed.
+- **Less unused startup allocation:** the shared optional HTTP client and Jev review cache initialize on first use. Offline scanning and navigation keep them unallocated; no whole-app RAM reduction is claimed.
+- **Native Windows ARM64 checks:** both architecture jobs build and run on their matching Windows hosts. Release gates include native WPF rendering and a standard-user installer lifecycle on each architecture.
+
+[Download v0.12.0](https://github.com/ErzenXz/Sentinel/releases/tag/v0.12.0) · [Release notes](docs/RELEASE-0.12.0.md) · [Installation and removal](docs/INSTALLATION.md) · [Performance measurements](docs/PERFORMANCE.md)
+
+## Included from v0.11.0
 
 - **More archive coverage:** inspect regular V7/ustar TAR entries, GZIP payloads, TGZ and mixed nested ZIP/TAR/GZIP trees within shared budgets, without extraction. Unsupported extensions, corrupt integrity, unsafe names and limits remain visible as incomplete coverage.
 - **Less archive allocation:** nested containers at the depth limit keep their complete hash check without an unused in-memory copy. ZIP preflight reuses bounded name/header scratch space and retains compact value records.
@@ -90,7 +99,9 @@ Existing capabilities include Defender quick/full/custom scans and intelligence 
 
 ## Run on Windows
 
-Extract **all files** from the appropriate v0.11.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
+Download the **v0.12.0 setup** matching your Windows PC: `win-x64` for Intel/AMD, `win-arm64` for Windows ARM64. Install for your current user, then open Sentinel from Start. Setup is unsigned, so Windows may warn about its publisher. Keep Defender enabled. See [installation, repair, upgrades and removal](docs/INSTALLATION.md).
+
+For portable use, extract **all files** from the matching Windows ZIP and open `Sentinel.exe`. Both formats include .NET and `Sentinel.Scanner.exe`; no SDK is needed to run them.
 
 Open **File scanner** to scan a file/folder immediately using the bundled public indicator snapshot. Open **Quarantine** to review backups. Use a standard Windows user session for independent file remediation and AI. Windows Firewall/Defender operations can require Settings → About Sentinel & administrator tools → Restart as administrator. AI and personal-file quarantine/restore are disabled in elevated sessions.
 
@@ -121,7 +132,7 @@ node scripts/verify-engine.mjs
 
 Run `dotnet run --project tests/Sentinel.UiTests -c Release -- --output artifacts/native-ui` on Windows for native interaction checks and PNGs.
 
-The portable engine tests and real HTTP interoperability test run on macOS/Linux too. WPF compiles with Windows targeting enabled; its native UI and OS operations must run on Windows. Use `scripts/publish.ps1 -Runtime win-x64` or `win-arm64` on Windows to package both executables.
+The portable engine tests and real HTTP interoperability test run on macOS/Linux too. WPF compiles with Windows targeting enabled; its native UI and OS operations must run on Windows. Use `scripts/publish.ps1 -Runtime win-x64` or `win-arm64` on a disposable GitHub-hosted Windows runner to build and lifecycle-test ZIP/setup packages. For a local Windows build, publish App and CLI into the same output directory, then run `scripts/build-installer.ps1` with `-Runtime`, `-PayloadDirectory` and `-Version`. The account-creating lifecycle harness refuses to run outside hosted CI.
 
 ## Design and limits
 

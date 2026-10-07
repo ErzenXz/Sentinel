@@ -1,6 +1,6 @@
 """Package already-published Windows builds; include only source-controlled-shaped server files.
 
-Usage: python3 scripts/package-release.py 0.7.0
+Usage: python3 scripts/package-release.py 0.12.0
 Run publish.ps1 or dotnet publish App + Cli to artifacts/portable/win-{x64,arm64} first.
 Use --from-archives to validate Windows CI ZIPs and add source/server/checksums.
 """
@@ -46,6 +46,13 @@ def archive(name, files):
     print(f"PASS {name}: {destination.stat().st_size:,} bytes")
 
 for rid, machine in [("win-x64", 0x8664), ("win-arm64", 0xAA64)]:
+    installer = artifacts / f"Sentinel-{version}-{rid}-setup.exe"
+    raw_setup = installer.read_bytes()
+    setup_offset = struct.unpack_from("<I", raw_setup, 0x3C)[0]
+    if raw_setup[:2] != b"MZ" or raw_setup[setup_offset:setup_offset+4] != b"PE\0\0" or struct.unpack_from("<H", raw_setup, setup_offset+4)[0] != 0x14C:
+        raise RuntimeError("Expected the pinned Inno x86 setup engine wrapping the native payload")
+    outputs.append(installer)
+    print(f"PASS {installer.name}: {installer.stat().st_size:,} bytes (installer lifecycle verified in Windows CI)")
     if from_archives:
         destination = artifacts / f"Sentinel-{version}-{rid}.zip"
         with zipfile.ZipFile(destination) as z:
@@ -67,6 +74,21 @@ for rid, machine in [("win-x64", 0x8664), ("win-arm64", 0xAA64)]:
             for name in ["LICENSE", "README.md"]:
                 if z.read(name) != (root / name).read_bytes():
                     raise RuntimeError(f"Packaged {name} does not match the release source")
+            manifest = json.loads(z.read("installed-files.json").decode("utf-8-sig"))
+            if manifest.get("schemaVersion") != 1 or manifest.get("version") != version or manifest.get("runtime") != rid:
+                raise RuntimeError("Installed manifest version/architecture mismatch")
+            members = {}
+            for item in manifest["files"]:
+                name = item["path"]
+                if name in members or name == "installed-files.json" or "\\" in name or not allowed(Path(name)) or Path(name).is_absolute() or ".." in Path(name).parts:
+                    raise RuntimeError("Invalid installed manifest path")
+                raw = z.read(name)
+                if len(raw) != item["bytes"] or hashlib.sha256(raw).hexdigest() != item["sha256"]:
+                    raise RuntimeError("Installed manifest payload digest mismatch")
+                members[name] = True
+            packaged = {i.filename for i in z.infolist() if not i.is_dir() and i.filename != "installed-files.json"}
+            if set(members) != packaged:
+                raise RuntimeError("Installed manifest does not cover the complete portable payload")
         outputs.append(destination)
         print(f"PASS {destination.name}: {destination.stat().st_size:,} bytes (Windows CI archive)")
         continue
@@ -98,7 +120,7 @@ source = []
 for name in ["README.md", "LICENSE", "Directory.Build.props", "Directory.Build.targets", ".gitignore", ".gitattributes"]:
     if (root / name).is_file():
         source.append((root / name, "Sentinel/" + name))
-for name in ["src", "tests", "docs", "scripts", ".github"]:
+for name in ["src", "tests", "docs", "scripts", "installer", ".github"]:
     for p in (root / name).rglob("*"):
         relative = p.relative_to(root)
         if p.is_file() and allowed(relative):

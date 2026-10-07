@@ -6,10 +6,11 @@ using Sentinel.Core;
 string? Option(string name) { var at = Array.IndexOf(args, name); return at >= 0 && at + 1 < args.Length ? args[at + 1] : null; }
 try
 {
+    InstallationLease.EnsureHeld();
     if (args.Length == 0 || args[0] is "help" or "--help")
     {
         Console.WriteLine("""
-            Sentinel independent scanner 0.7
+            Sentinel independent scanner
             scan <absolute path> --feed <signed feed.json> --key <public.pem> [--report <report.json>]
             scan <absolute path> --profile <Sentinel local-data folder> [--report <report.json>]
             Add --low-impact to either scan command for brief cooperative yields between chunks/files.
