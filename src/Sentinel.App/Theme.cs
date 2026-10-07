@@ -9,9 +9,9 @@ internal static class Theme
         "Muted" or "#667975" or "#526B64" => "Muted", "Warning" or "#986131" or "#91762A" => "Warning", "Positive" or "#176B57" => "Positive", "Danger" => "DangerInk", _ => "Ink"
     };
     // Keep these values identical to the initial brushes in App.xaml.
-    public static void Apply()
+    public static void Apply() => Apply(SystemParameters.HighContrast);
+    internal static void Apply(bool high)
     {
-        var high = SystemParameters.HighContrast;
         var resources = System.Windows.Application.Current.Resources;
         void Set(string key, string normal, Brush contrast) => resources[key] = high ? contrast : new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString(normal));
         Set("Ink", "#1C1F1D", SystemColors.WindowTextBrush);

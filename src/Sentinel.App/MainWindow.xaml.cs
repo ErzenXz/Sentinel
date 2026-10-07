@@ -14,7 +14,7 @@ namespace Sentinel.App;
 
 public partial class MainWindow : Window
 {
-    private readonly WindowsSecurity security = new(new PowerShellRunner());
+    private readonly WindowsSecurity security;
     private readonly HttpClient http = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromMinutes(3) };
     private readonly CancellationTokenSource lifetime = new();
     private CancellationTokenSource? operation;
@@ -28,8 +28,10 @@ public partial class MainWindow : Window
     private bool busy;
     private bool storageFailed;
 
-    public MainWindow()
+    public MainWindow() : this(new PowerShellRunner()) { }
+    internal MainWindow(IScriptRunner runner)
     {
+        security = new(runner);
         InitializeComponent();
         BuildNavigation();
         InitializeAnnouncements();

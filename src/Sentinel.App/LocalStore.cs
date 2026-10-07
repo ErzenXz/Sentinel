@@ -9,7 +9,31 @@ namespace Sentinel.App;
 
 internal static class LocalStore
 {
-    public static string Root => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sentinel");
+    private static string? temporaryRoot;
+    private static string DefaultRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sentinel");
+    public static string Root => temporaryRoot ?? DefaultRoot;
+    // Only the friend test assembly uses this before creating a window. There is no
+    // environment variable or product command-line option that redirects a profile.
+    internal static IDisposable UseTemporaryProfile(string directory)
+    {
+        if (temporaryRoot is not null || System.Windows.Application.Current?.Windows.Count > 0)
+            throw new InvalidOperationException("Choose the temporary profile before creating a window.");
+        directory = FileSafety.NormalizeRegularPath(directory);
+        if (!Directory.Exists(directory) || FolderMonitor.IsWithin(directory, DefaultRoot) || FolderMonitor.IsWithin(DefaultRoot, directory))
+            throw new ArgumentException("Use a separate temporary folder for UI verification.");
+        temporaryRoot = directory;
+        return new TemporaryProfile();
+    }
+    private sealed class TemporaryProfile : IDisposable
+    {
+        private bool disposed;
+        public void Dispose()
+        {
+            if (disposed) return;
+            if (System.Windows.Application.Current?.Windows.Count > 0) throw new InvalidOperationException("Close the verification window before releasing its profile.");
+            temporaryRoot = null; disposed = true;
+        }
+    }
     public static ProtectionPreferences LoadPreferences() => ProtectionPreferencesStore.Load(Path.Combine(Root, "protection-preferences.json"));
     public static void SavePreferences(ProtectionPreferences preferences) => ProtectionPreferencesStore.Save(Path.Combine(Root, "protection-preferences.json"), preferences);
     public static ProtectionSettings LoadProtection() { var path = Path.Combine(Root, "protection.json"); return File.Exists(path) ? JsonSerializer.Deserialize<ProtectionSettings>(File.ReadAllText(path)) ?? new() : new(); }
