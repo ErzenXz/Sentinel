@@ -21,9 +21,10 @@ public static class InstallationLease
             if (running is not null) return;
             // Presence serializes startup against SetupMutex. Create the running
             // marker before releasing this short startup guard.
-            using var transition = new Mutex(false, SetupName(CurrentProfile), out var created);
+            var profileKey = ProfileKey(CurrentProfile);
+            using var transition = new Mutex(false, @"Global\Sentinel.Setup.v1." + profileKey, out var created);
             if (!created) throw new InvalidOperationException("Sentinel is being installed or removed. Wait for that operation to finish, then open it again.");
-            running = new Mutex(false, RunningName(CurrentProfile));
+            running = new Mutex(false, @"Global\Sentinel.Run.v1." + profileKey);
         }
     }
 }

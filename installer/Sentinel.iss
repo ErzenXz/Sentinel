@@ -64,7 +64,7 @@ Name: "{autoprograms}\Sentinel\Sentinel"; Filename: "{app}\Sentinel.exe"; Workin
 Name: "{autodesktop}\Sentinel"; Filename: "{app}\Sentinel.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Code]
-#include "{#AuxiliaryDirectory}\CleanupScript.iss"
+#include AuxiliaryDirectory + "\CleanupScript.iss"
 
 var TransitionHandle: THandle;
 

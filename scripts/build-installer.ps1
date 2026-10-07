@@ -45,7 +45,7 @@ $lines = [IO.File]::ReadAllLines((Join-Path $PSScriptRoot 'cleanup-user-task.ps1
 $quoted = @($lines | ForEach-Object { "  '" + $_.Replace("'", "''") + "' + #13#10" })
 $cleanupCode = "const CleanupPowerShell =`r`n" + ($quoted -join " +`r`n") + ";`r`n"
 [IO.File]::WriteAllText((Join-Path $auxiliary 'CleanupScript.iss'), $cleanupCode, [Text.UTF8Encoding]::new($false))
-& $compiler "/DAppVersion=$Version" "/DRuntime=$Runtime" "/DPayloadDirectory=$payload" "/DAuxiliaryDirectory=$auxiliary" "/DOutputDirectory=$artifacts" (Join-Path $root 'installer/Sentinel.iss')
+& $compiler --quiet --messages-jsonl "/DAppVersion=$Version" "/DRuntime=$Runtime" "/DPayloadDirectory=$payload" "/DAuxiliaryDirectory=$auxiliary" "/DOutputDirectory=$artifacts" (Join-Path $root 'installer/Sentinel.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
 $setup = Join-Path $artifacts "Sentinel-$Version-$Runtime-setup.exe"
 if (-not (Test-Path -LiteralPath $setup)) { throw 'Compiled installer is missing.' }

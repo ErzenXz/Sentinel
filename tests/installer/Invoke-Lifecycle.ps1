@@ -131,6 +131,30 @@ try {
     $appProcess = $null
     VerifyPreserved
 
+    # A local metadata-only provider fixture keeps the real scanner alive while
+    # setup/uninstall run. It makes no inference or external network request.
+    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+    $listener.Start(1)
+    $scannerProcess = $null; $client = $null
+    try {
+        $accept = $listener.AcceptTcpClientAsync()
+        $port = $listener.LocalEndpoint.Port
+        $scannerProcess = Start-Process -FilePath $scanner -ArgumentList @('models','--provider','Ollama','--endpoint',"http://127.0.0.1:$port/") -PassThru -RedirectStandardOutput (Join-Path $logRoot 'scanner-models.json')
+        Check ($accept.Wait(10000)) 'Installed scanner reaches the harmless loopback metadata fixture'
+        $client = $accept.GetAwaiter().GetResult()
+        Check ((Install 'scanner-in-use-upgrade') -ne 0) 'Upgrade refuses while the command-line scanner is running'
+        Check ((Uninstall 'scanner-in-use-remove') -ne 0) 'Removal refuses while the command-line scanner is running'
+        Check (-not $scannerProcess.HasExited -and (Test-Path -LiteralPath $scanner)) 'Installer leaves the active scanner and files intact'
+        $payload = [Text.Encoding]::UTF8.GetBytes('{"models":[]}')
+        $header = [Text.Encoding]::ASCII.GetBytes("HTTP/1.1 200 OK`r`nContent-Type: application/json`r`nContent-Length: $($payload.Length)`r`nConnection: close`r`n`r`n")
+        $stream = $client.GetStream(); $stream.Write($header,0,$header.Length); $stream.Write($payload,0,$payload.Length); $stream.Flush()
+        $client.Dispose(); $client = $null
+        Check ($scannerProcess.WaitForExit(10000) -and $scannerProcess.ExitCode -eq 0) 'Installed scanner finishes normally after the guarded metadata request'
+    } finally {
+        if ($null -ne $client) { $client.Dispose() }; $listener.Stop()
+        if ($null -ne $scannerProcess -and -not $scannerProcess.HasExited) { Stop-Process -Id $scannerProcess.Id -Force -ErrorAction SilentlyContinue }
+    }
+
     [IO.File]::WriteAllText((Join-Path $appRoot 'README.md'), 'Repair fixture')
     Check ((Install 'repair') -eq 0) 'Same-version repair succeeds'
     VerifyPayload; VerifyPreserved
