@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "description": "Warmed synthetic offline core workloads. Process-wide managed allocations; excludes UI, OS protection, AI and startup. Not Windows working-set or throughput certification.",
+  "os": "macOS 27.0.1",
+  "architecture": "Arm64",
+  "dotnet": "10.0.12",
+  "files": 2500,
+  "iterations": 5,
+  "fileBytes": 8192,
+  "reportBytes": 8690421,
+  "feedIndicators": 10000,
+  "feedEnvelopeBytes": 2027457,
+  "catalogIndicators": 6113,
+  "catalogRetainedManagedBytes": 5309256,
+  "catalogMeasurement": "Managed heap delta around the first catalog load with forced collection, including serializer metadata; not process working set.",
+  "results": [
+    {
+      "workload": "wide-folder-8192-byte-files",
+      "medianMilliseconds": 767.2462,
+      "allocatedBytesMedian": 17488816
+    },
+    {
+      "workload": "save-and-load-2000-long-evidence-findings",
+      "medianMilliseconds": 27.0035,
+      "allocatedBytesMedian": 17263976
+    },
+    {
+      "workload": "refresh-unchanged-signed-indicators",
+      "medianMilliseconds": 25.5387,
+      "allocatedBytesMedian": 21092112
+    }
+  ]
+}

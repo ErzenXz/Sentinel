@@ -62,3 +62,41 @@ The passing candidate retained **zero of twelve** old views. Its managed heap wa
 The candidate's three-second hosted software-rendered fixture sample consumed 2,546.875 ms process CPU with a 161,837,056-byte working set, 67,452,928 private bytes and 6,568,608 managed bytes. Only one ApplicationIdle dispatcher operation ran during that sample. The high CPU result needs investigation/measurement on ordinary Windows hardware; its cause is not established. The test forces software rendering and follows many render-to-bitmap captures, so this is neither an ordinary production idle measurement nor evidence of an idle CPU improvement. No Windows throughput, whole-process memory-saving percentage or comparative AV claim is made.
 
 [Baseline raw native output](benchmarks/native-ui-baseline-v0.8-windows-x64.json) · [First passing candidate raw output](benchmarks/native-ui-first-passing-windows-x64.json) · [v0.9 candidate raw output](benchmarks/native-ui-v0.9-windows-x64.json) · [Native method and limitations](NATIVE-UI-VERIFICATION.md) · [First passing candidate job](https://github.com/ErzenXz/Sentinel/actions/runs/37641620009)
+
+
+## v0.10 signed-feed refresh allocations and Windows CPU investigation
+
+The unchanged-feed workload uses 10,000 distinct harmless indicators in an approximately 2.03 MB signed envelope. Signing, fixture creation and one warmup update happen before five measured refreshes. Each refresh still verifies the signature, expiry, sequence and indicators and compares all committed cache bytes. The fake HTTP handler returns the envelope in memory; these timings exclude network latency and server work.
+
+The same v0.10 harness was built against the v0.9 tag (`af4ce1b`) and candidate core (`903b2ee`), then run sequentially from the same harness/output directory. Windows measurements ran on one Windows Server 2025 x64 hosted runner with .NET 10.0.12; Mac measurements used macOS ARM64/.NET 10.0.12. Synthetic envelope signatures/timestamp precision vary a few bytes between processes; indicator count/text and verification checks are equal. Five warmed iterations are a small sample; timings vary with filesystem/JIT/host activity and are not a significance estimate.
+
+| Host / unchanged signed-feed refresh | v0.9 managed allocations | v0.10 managed allocations | Reduction | Median time, baseline → candidate |
+|---|---:|---:|---:|---:|
+| Windows x64 | 21,072,704 B | 10,117,448 B | 52.0% | 35.6681 → 38.1747 ms |
+| Mac ARM64 | 21,092,112 B | 10,129,688 B | 52.0% | 25.5387 → 19.4201 ms |
+
+An earlier candidate before cache-loss hardening measured 46.4624 → 26.7132 ms on Windows; the final comparison above reverses that timing direction. Allocation savings persist, but **elapsed-time improvement is not consistent across these runs**. [Earlier baseline](benchmarks/feed-before-hardening-baseline-v0.9-windows-x64.json) · [Earlier candidate](benchmarks/feed-before-hardening-v0.10-windows-x64.json). No general speed or CPU improvement is claimed.
+
+These are process-wide **allocated managed bytes for this refresh workload**, not peak memory, retained heap or a 52% reduction in overall application RAM. Windows folder-scan allocations remain essentially equal (8,501,912 → 8,502,928 B), as do report round trips (17,169,584 → 17,168,664 B); no new general scanner-throughput claim is established.
+
+The download uses its existing memory buffer rather than a second envelope copy. A declared Content-Length above the 24 MiB ceiling is rejected before allocation; actual streamed bytes retain that ceiling even when the header is missing or misleading. Base64 bytes decode directly from UTF-8 through the [runtime's byte-array JSON converter](https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.Text.Json/src/System/Text/Json/Serialization/Converters/Value/ByteArrayConverter.cs), avoiding a large UTF-16 payload string. The validation dictionary becomes the compacted catalog index, avoiding a separate duplicate-key set/index. Equal-sequence cache comparison uses a cleared pooled buffer and an open, freshly validated regular local path. Identical fully verified envelopes skip cache/sequence replacement and disk flushes; changed equal-sequence content still fails. A 32-byte digest from RSA signature verification preserves active payload identity across cache loss. An active verified catalog can rebuild identical missing cache bytes; after restart, a known sequence with no cache requires a newer publication, preserving rollback state.
+
+[Windows baseline](benchmarks/feed-baseline-v0.9-windows-x64.json) · [Windows candidate](benchmarks/feed-v0.10-windows-x64.json) · [Mac baseline](benchmarks/feed-baseline-v0.9-macos-arm64.json) · [Mac candidate](benchmarks/feed-v0.10-macos-arm64.json) · [Paired Windows workflow](https://github.com/ErzenXz/Sentinel/actions/runs/37650862516)
+
+Reproduce the candidate on Windows or Mac:
+
+```sh
+dotnet run --project tests/Sentinel.Benchmarks -c Release -- --files 2500 --iterations 5 --feed-indicators 10000
+```
+
+For the baseline, compile this same harness with the existing `CoreProject` override pointing to `v0.9.0/src/Sentinel.Core/Sentinel.Core.csproj` in a separate source checkout/snapshot. Keep the harness/output directory the same and run sequentially. The diagnostic workflow fetches exactly that tag and archives only the baseline core, shared build properties and public seed metadata.
+
+### The earlier high fixture CPU reading
+
+The diagnostic harness samples only its own process and threads, with fresh default/software rendering preferences, a 27-bitmap capture burst, hidden/showing windows and the original post-verification phase. Thread descriptions, native start modules, process CPU and dispatcher activity are recorded. This is test-only code and adds no profiler or sampling thread to the shipped app.
+
+In the final Windows run, the original three-second post-verification sample consumed **2,625 ms process CPU**. That entire measured delta was attributed to the existing `.NET Tiered Compilation Worker` thread starting in `coreclr.dll`; only one ApplicationIdle dispatcher operation ran. The later visible/hidden/post-capture five-second samples consumed **0–15.625 ms**. A separate fixture process with `DOTNET_TieredCompilation=0` consumed **0 ms** in the original sample. Together these measurements identify background optimizing JIT warmup as the cause of this reproduced fixture spike. [Microsoft describes tiered compilation's background optimization and configuration](https://learn.microsoft.com/en-us/dotnet/core/runtime-config/compilation).
+
+Production keeps the runtime default. Disabling tiered compilation changes startup/optimization tradeoffs, so the diagnostic process is not a shipped CPU or RAM improvement. Fresh default-rendering first-phase CPU was 343.75 ms / five seconds in this run, then 15.625 ms after the capture burst; new/exited threads and CPU counter quantization can leave thread deltas unattributed. These measurements do not establish ordinary hardware startup/idle requirements, whole-process memory savings, detection performance or antivirus rankings. They exclude production PowerShell status reads, Defender, active monitoring, AI and driver work.
+
+[Fresh default raw report](benchmarks/resource-v0.10-default-fresh-windows-x64.json) · [Fresh software](benchmarks/resource-v0.10-software-fresh-windows-x64.json) · [After verification](benchmarks/resource-v0.10-software-after-verification-windows-x64.json) · [Diagnostic tiered-compilation-off process](benchmarks/resource-v0.10-software-without-tiered-compilation-windows-x64.json)

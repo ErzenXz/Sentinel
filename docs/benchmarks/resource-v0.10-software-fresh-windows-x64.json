@@ -1,0 +1,744 @@
+{
+  "schemaVersion": 1,
+  "renderedAt": "2026-10-07T16:19:16.0387476+00:00",
+  "commit": "903b2ee169c918d90b4df6ac6a22cb28f845d525",
+  "description": "Actual Windows WPF fixture profile and injected read-only status data. No paid AI or OS protection change. This does not certify native ARM64, Narrator, OS high-contrast, hardware DPI, UAC, DPAPI recovery or enforcement. Resource profiling phases are test-only diagnostics, not comparative AV benchmarks.",
+  "profileRun": true,
+  "rendering": "software",
+  "resourceSamples": [
+    {
+      "phase": "visible-before-capture-burst",
+      "seconds": 5.0011803,
+      "cpuMilliseconds": 15.625,
+      "windowVisible": true,
+      "description": "Fixture process/thread CPU sample after two seconds settling. Injected status reads; no monitoring, Defender work, AI, driver or real-user workload. Forced software/default rendering preference is recorded separately.",
+      "processId": 3748,
+      "renderingTier": 2,
+      "softwarePreference": "SoftwareOnly",
+      "workingSetBytes": 108138496,
+      "privateBytes": 39395328,
+      "managedBytes": 13002728,
+      "trackedThreadCpuMilliseconds": 0,
+      "topThreads": [
+        {
+          "Id": 4260,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "Sentinel.UiTests.exe",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4208,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3956,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5544,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3652,
+          "Name": ".NET EventPipe",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5956,
+          "Name": ".NET Debugger",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5640,
+          "Name": ".NET Finalizer",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4200,
+          "Name": ".NET Timer",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3528,
+          "Name": ".NET TP Worker",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4284,
+          "Name": ".NET TP Gate",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4072,
+          "Name": ".NET TP Worker",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 6088,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "combase.dll",
+          "cpuMilliseconds": 0
+        }
+      ],
+      "dispatcherOperations": [
+        {
+          "priority": "ApplicationIdle",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "phase": "visible-after-27-bitmap-captures",
+      "seconds": 5.0127056,
+      "cpuMilliseconds": 0,
+      "windowVisible": true,
+      "description": "Fixture process/thread CPU sample after two seconds settling. Injected status reads; no monitoring, Defender work, AI, driver or real-user workload. Forced software/default rendering preference is recorded separately.",
+      "processId": 3748,
+      "renderingTier": 2,
+      "softwarePreference": "SoftwareOnly",
+      "workingSetBytes": 116518912,
+      "privateBytes": 43606016,
+      "managedBytes": 4982560,
+      "trackedThreadCpuMilliseconds": 15.625,
+      "topThreads": [
+        {
+          "Id": 4260,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "Sentinel.UiTests.exe",
+          "cpuMilliseconds": 15.625
+        },
+        {
+          "Id": 4208,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3956,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5544,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3652,
+          "Name": ".NET EventPipe",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5956,
+          "Name": ".NET Debugger",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5640,
+          "Name": ".NET Finalizer",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4200,
+          "Name": ".NET Timer",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3528,
+          "Name": ".NET TP Worker",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4284,
+          "Name": ".NET TP Gate",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4072,
+          "Name": ".NET TP Worker",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 6088,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "combase.dll",
+          "cpuMilliseconds": 0
+        }
+      ],
+      "dispatcherOperations": [
+        {
+          "priority": "ApplicationIdle",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "phase": "hidden-after-captures",
+      "seconds": 4.9999067,
+      "cpuMilliseconds": 31.25,
+      "windowVisible": false,
+      "description": "Fixture process/thread CPU sample after two seconds settling. Injected status reads; no monitoring, Defender work, AI, driver or real-user workload. Forced software/default rendering preference is recorded separately.",
+      "processId": 3748,
+      "renderingTier": 2,
+      "softwarePreference": "SoftwareOnly",
+      "workingSetBytes": 109961216,
+      "privateBytes": 40456192,
+      "managedBytes": 5089216,
+      "trackedThreadCpuMilliseconds": 31.25,
+      "topThreads": [
+        {
+          "Id": 9472,
+          "Name": ".NET Tiered Compilation Worker",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 31.25
+        },
+        {
+          "Id": 4260,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "Sentinel.UiTests.exe",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4208,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3956,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5544,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3652,
+          "Name": ".NET EventPipe",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5956,
+          "Name": ".NET Debugger",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5640,
+          "Name": ".NET Finalizer",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4200,
+          "Name": ".NET Timer",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3528,
+          "Name": ".NET TP Worker",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4284,
+          "Name": ".NET TP Gate",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4072,
+          "Name": ".NET TP Worker",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        }
+      ],
+      "dispatcherOperations": [
+        {
+          "priority": "ApplicationIdle",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "phase": "visible-after-showing",
+      "seconds": 5.001539,
+      "cpuMilliseconds": 0,
+      "windowVisible": true,
+      "description": "Fixture process/thread CPU sample after two seconds settling. Injected status reads; no monitoring, Defender work, AI, driver or real-user workload. Forced software/default rendering preference is recorded separately.",
+      "processId": 3748,
+      "renderingTier": 2,
+      "softwarePreference": "SoftwareOnly",
+      "workingSetBytes": 115642368,
+      "privateBytes": 41312256,
+      "managedBytes": 5203840,
+      "trackedThreadCpuMilliseconds": 0,
+      "topThreads": [
+        {
+          "Id": 4260,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "Sentinel.UiTests.exe",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4208,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3956,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5544,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "ntdll.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3652,
+          "Name": ".NET EventPipe",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5956,
+          "Name": ".NET Debugger",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 5640,
+          "Name": ".NET Finalizer",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4200,
+          "Name": ".NET Timer",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 3528,
+          "Name": ".NET TP Worker",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4284,
+          "Name": ".NET TP Gate",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 4072,
+          "Name": ".NET TP Worker",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "coreclr.dll",
+          "cpuMilliseconds": 0
+        },
+        {
+          "Id": 6088,
+          "Name": "unnamed",
+          "DescriptionStatus": "0x10000000",
+          "StartModule": "combase.dll",
+          "cpuMilliseconds": 0
+        }
+      ],
+      "dispatcherOperations": [
+        {
+          "priority": "ApplicationIdle",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "runtimeConfiguration": {
+    "tieredCompilation": "runtime default"
+  },
+  "os": "Microsoft Windows 10.0.26100",
+  "architecture": "X64",
+  "dotnet": "10.0.12",
+  "elevatedRunner": true,
+  "exitCode": 0,
+  "checks": [
+    {
+      "name": "Fresh fixture startup finishes without OS mutation requests",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Native window reaches 1200 \u00D7 820",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "Shutdown closes the window and settles pending work",
+      "passed": true,
+      "details": null
+    }
+  ],
+  "captures": [
+    {
+      "name": "profile-capture-0",
+      "file": "profile-capture-0.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-1",
+      "file": "profile-capture-1.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-2",
+      "file": "profile-capture-2.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-3",
+      "file": "profile-capture-3.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-4",
+      "file": "profile-capture-4.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-5",
+      "file": "profile-capture-5.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-6",
+      "file": "profile-capture-6.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-7",
+      "file": "profile-capture-7.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-8",
+      "file": "profile-capture-8.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-9",
+      "file": "profile-capture-9.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-10",
+      "file": "profile-capture-10.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-11",
+      "file": "profile-capture-11.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-12",
+      "file": "profile-capture-12.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-13",
+      "file": "profile-capture-13.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-14",
+      "file": "profile-capture-14.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-15",
+      "file": "profile-capture-15.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-16",
+      "file": "profile-capture-16.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-17",
+      "file": "profile-capture-17.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-18",
+      "file": "profile-capture-18.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-19",
+      "file": "profile-capture-19.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-20",
+      "file": "profile-capture-20.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-21",
+      "file": "profile-capture-21.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-22",
+      "file": "profile-capture-22.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-23",
+      "file": "profile-capture-23.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-24",
+      "file": "profile-capture-24.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-25",
+      "file": "profile-capture-25.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "profile-capture-26",
+      "file": "profile-capture-26.png",
+      "width": 1184,
+      "height": 781,
+      "logicalWindowWidth": 1200,
+      "logicalWindowHeight": 820,
+      "fixtureData": true,
+      "dpi": 96
+    }
+  ],
+  "layoutIssues": [],
+  "failures": [],
+  "bindingErrors": [],
+  "fixtureReads": 3,
+  "canceledFixtureReads": 0,
+  "unexpectedScripts": [],
+  "idle": null,
+  "retention": null
+}

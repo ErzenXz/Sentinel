@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "description": "Warmed synthetic offline core workloads. Process-wide managed allocations; excludes UI, OS protection, AI and startup. Not Windows working-set or throughput certification.",
+  "os": "Microsoft Windows 10.0.26100",
+  "architecture": "X64",
+  "dotnet": "10.0.12",
+  "files": 2500,
+  "iterations": 5,
+  "fileBytes": 8192,
+  "reportBytes": 8688442,
+  "feedIndicators": 10000,
+  "feedEnvelopeBytes": 2027471,
+  "catalogIndicators": 6113,
+  "catalogRetainedManagedBytes": 1534096,
+  "catalogMeasurement": "Managed heap delta around the first catalog load with forced collection, including serializer metadata; not process working set.",
+  "results": [
+    {
+      "workload": "wide-folder-8192-byte-files",
+      "medianMilliseconds": 510.1062,
+      "allocatedBytesMedian": 8502928
+    },
+    {
+      "workload": "save-and-load-2000-long-evidence-findings",
+      "medianMilliseconds": 78.9452,
+      "allocatedBytesMedian": 17168664
+    },
+    {
+      "workload": "refresh-unchanged-signed-indicators",
+      "medianMilliseconds": 38.1747,
+      "allocatedBytesMedian": 10117448
+    }
+  ]
+}

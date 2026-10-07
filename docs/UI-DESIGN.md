@@ -49,3 +49,5 @@ Folder monitoring explains initial coverage, Low impact mode, the five-minute re
 ## Native fixes in v0.9
 
 Discarded scanner pages detach their collection view, clear its count binding/filter and stop their monitor status timer. Navigation and shutdown release the page. Tables no longer synchronize selection to the collection current item, so a first row cannot become implicitly selected before the evidence inspector is ready. String button labels inherit the button brush; primary, quiet, destructive and disabled labels now follow the actual control colors, including system-color resources. The new native job checks both inspector arrangements and selected full evidence.
+
+In v0.10, the selected-finding inspector adds **Scan file again**, disabled until a finding is selected. Its tooltip and accessible help describe current bytes/current intelligence, whole-archive behavior and replacement of the result view with a new saved report. It uses the existing local scan, pause/cancel, speed and history path; it makes no AI request or remediation change.

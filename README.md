@@ -2,9 +2,18 @@
 
 MIT-licensed native Windows security application, with an independent local scanner, self-hostable intelligence server, Windows protection controls, and optional AI explanations.
 
-**v0.9.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
+**v0.10.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
 
-## New in v0.9.0
+## New in v0.10.0
+
+- **Scan a selected file again:** recheck current bytes with the current threat list and selected scan speed, including the whole archive for contained findings. Fresh results replace the view and are saved in Scan history.
+- **Lower feed-refresh allocations:** received envelopes stay in their original buffer; base64 is decoded directly from UTF-8; indicator validation shares its lookup index; cached envelopes are compared in bounded chunks. Signature, expiry, sequence and indicator validation remain required.
+- **Less disk work on unchanged feeds:** identical signed envelopes are verified again and compared completely, then retained without rewriting or flushing the cache/sequence files.
+- **Windows resource investigation:** fresh/default/software/hidden windows and post-verification runtime threads are measured separately. Warmup and synthetic fixture samples are kept distinct from ordinary hardware and whole-antivirus benchmarks.
+
+[Download v0.10.0](https://github.com/ErzenXz/Sentinel/releases/tag/v0.10.0) · [Release notes](docs/RELEASE-0.10.0.md) · [Performance measurements](docs/PERFORMANCE.md) · [Native Windows screenshots](docs/NATIVE-UI-VERIFICATION.md)
+
+## Included from v0.9.0
 
 - **No retained scanner pages after navigation:** discarded collection views detach from the finding collection, release their filter/count binding and stop their page timer. A native Windows regression changed from 12 retained views to zero after twelve visits.
 - **Correct selection and evidence:** tables require explicit selection, and the selected path, reason and SHA-256 are available together. Selection actions start disabled.
@@ -78,7 +87,7 @@ Existing capabilities include Defender quick/full/custom scans and intelligence 
 
 ## Run on Windows
 
-Extract **all files** from the appropriate v0.9.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
+Extract **all files** from the appropriate v0.10.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
 
 Open **File scanner** to scan a file/folder immediately using the bundled public indicator snapshot. Open **Quarantine** to review backups. Use a standard Windows user session for independent file remediation and AI. Windows Firewall/Defender operations can require Settings → About Sentinel & administrator tools → Restart as administrator. AI and personal-file quarantine/restore are disabled in elevated sessions.
 
@@ -117,6 +126,6 @@ No Electron, embedded browser, telemetry, or bundled LLM. The own scanner uses o
 
 A hash list detects exact published files and misses changed/new malware. We do not yet have kernel-enforced execution blocking, broad archive-format coverage, ransomware behavioral blocking, a protected service, or AV certification. These require sustained engineering and independent evaluation.
 
-Read [v0.9.0 release notes](docs/RELEASE-0.9.0.md), [performance measurements](docs/PERFORMANCE.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
+Read [v0.10.0 release notes](docs/RELEASE-0.10.0.md), [performance measurements](docs/PERFORMANCE.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
 
 Sentinel code is MIT licensed. Embedded ESET indicator data remains BSD two-clause licensed; ESET does not endorse Sentinel. No OpenClaw source code or third-party malware binaries are bundled.

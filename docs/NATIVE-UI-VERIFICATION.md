@@ -10,7 +10,7 @@ dotnet run --project tests/Sentinel.UiTests -c Release -- --output artifacts/nat
 
 The `Native-UI` workflow artifact contains PNGs, `verification.json` and `progress.txt`. It is separate from the downloadable application packages. Captures use software rendering at 96 DPI, show the client area rather than Windows chrome, and cover every page at 1200 × 820 and 960 × 680 logical window sizes. Expanded monitoring/provider settings, selected evidence at both sizes, the system-color resource branch, busy startup and a paused local scan have additional captures. The fixture enforces its requested minimum dimensions so a small hosted display cannot silently clamp the wide arrangement; it asserts the actual window size. This does not test ordinary OS resize rules.
 
-Assertions exercise native UI Automation invoke/disclosure patterns, page navigation during a pending status read, cancellation, fixture finding search/selection, unavailable remediation/network actions, local scan pause/resume/cancel, a subsequent scan and settled window shutdown. Layout checks detect untrimmed single-line text wider than its arranged width and text outside the client area; WPF binding errors fail the job. Screenshots still need visual inspection, because these checks cannot assess every overlap, color or interaction.
+Assertions exercise native UI Automation invoke/disclosure patterns, page navigation during a pending status read, cancellation, fixture finding search/selection, unavailable remediation/network actions, local scan pause/resume/cancel, a subsequent scan, selected-file rescan with current-byte/history checks and settled window shutdown. Layout checks detect untrimmed single-line text wider than its arranged width and text outside the client area; WPF binding errors fail the job. Screenshots still need visual inspection, because these checks cannot assess every overlap, color or interaction.
 
 The memory regression navigates away from twelve scanner views, forces collection after dispatcher work settles, and counts live weak references. Its managed-heap readings are diagnostic, not a process memory comparison. A separate three-second idle sample records this fixture window's CPU, working set, private bytes and managed heap. It excludes production status capture, Defender, AI, on-access drivers and real file workloads; do not infer a product ranking or ordinary-user resource requirement from it.
 
@@ -21,9 +21,9 @@ This job runs on Windows x64. Windows ARM64 builds are separate; native ARM64 ex
 WPF rendering follows [Microsoft's visual encoding example](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/how-to-encode-a-visual-to-an-image-file). The fixture suppresses production window creation because the [WPF application constructor queues startup before its dispatcher runs](https://source.dot.net/PresentationFramework/System/Windows/Application.cs.html).
 
 
-## Recorded v0.9 candidate
+## Recorded v0.10 candidate
 
-[Windows run 37642692878](https://github.com/ErzenXz/Sentinel/actions/runs/37642692878) passed **108 assertions**, produced **27 captures**, and reported no binding/layout errors. Both Windows x64/ARM64 build/test/package jobs passed. The verifier executed on x64 with an elevated hosted runner, so it checked disabled elevated-session remediation/AI rather than standard-user execution. [Raw report](benchmarks/native-ui-v0.9-windows-x64.json).
+[Windows run 37650862500](https://github.com/ErzenXz/Sentinel/actions/runs/37650862500) passed **112 assertions**, produced **27 captures**, and reported no binding/layout errors. Both Windows x64/ARM64 build/test/package jobs passed. The verifier executed on x64 with an elevated hosted runner, so it checked disabled elevated-session remediation/AI rather than standard-user execution. [Raw report](benchmarks/native-ui-v0.10-windows-x64.json).
 
 These unchanged PNGs come from that native run. They show fixture data and an administrator session; they do not describe a real user's protection status.
 
@@ -32,3 +32,10 @@ These unchanged PNGs come from that native run. They show fixture data and an ad
 ![Native Windows selected evidence in the wide inspector](images/native-findings-wide-windows-x64-fixture.png)
 
 ![Native Windows selected evidence in the stacked inspector](images/native-findings-stacked-windows-x64-fixture.png)
+
+
+## Resource diagnostics
+
+On Windows, `--profile --render default|software` measures fresh-window phases before/after 27 bitmap captures and while hidden/shown. Add `--after-verification` to run the normal interaction suite first, including thread CPU attribution in its original three-second sample. `verification.json` records rendering preference, tier, the scoped tiered-compilation environment setting, own-process memory/CPU, dispatcher operations and query-only thread descriptions/start modules. New/exited threads and timer quantization can make thread deltas incomplete. These routines are test-only; the product has no profiling mode.
+
+The separate Windows resource workflow also runs a process with `DOTNET_TieredCompilation=0` to diagnose compilation warmup and compares the same core benchmark harness against v0.9. Runtime defaults remain enabled in production. The original post-verification spike is attributed to `.NET Tiered Compilation Worker`, with settled/default-rendering samples reported separately. [Full evidence, reproduction and limits](PERFORMANCE.md#v010-signed-feed-refresh-allocations-and-windows-cpu-investigation).
