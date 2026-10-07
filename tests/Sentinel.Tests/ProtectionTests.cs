@@ -119,6 +119,17 @@ internal static class ProtectionTests
             response = original; var recovered = await repo.UpdateAsync(http, settings);
             Check(recovered.Payload.Sequence == trusted.Payload.Sequence && File.ReadAllBytes(tmp.File("feed/feed.json")).SequenceEqual(original));
         });
+        test("Restart after cache loss requires a newer signed sequence without resetting rollback state", async () => {
+            using var tmp = new Temporary(); byte[] response = Bundle();
+            using var http = new HttpClient(new FakeHttp(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(response) })));
+            var settings = new ProtectionSettings("https://example.com/", PublicKey);
+            await new FeedRepository(tmp.File("feed")).UpdateAsync(http, settings); File.Delete(tmp.File("feed/feed.json"));
+            var restarted = new FeedRepository(tmp.File("feed")); Fails<InvalidDataException>(() => restarted.Load(PublicKey));
+            await Fails<InvalidDataException>(() => restarted.UpdateAsync(http, settings));
+            Check(restarted.Current is null && File.ReadAllText(tmp.File("feed/sequence.txt")) == "1" && !File.Exists(tmp.File("feed/feed.json")));
+            response = Bundle(sequence: 2); var restored = await restarted.UpdateAsync(http, settings);
+            Check(restored.Payload.Sequence == 2 && File.ReadAllBytes(tmp.File("feed/feed.json")).SequenceEqual(response));
+        });
         test("Multi-chunk feed refresh preserves every indicator and exact cache bytes", async () => {
             using var tmp = new Temporary(); var repo = new FeedRepository(tmp.File("feed"));
             var rules = Enumerable.Range(0, 1200).Select(i => new HashIndicator(i.ToString("X64"), "Harmless transport fixture", "Local test")).ToArray();

@@ -97,7 +97,11 @@ public sealed class FeedRepository(string directory)
     public void Load(string publicKeyPem)
     {
         Volatile.Write(ref current, null);
-        if (!File.Exists(CachePath)) return;
+        if (!File.Exists(CachePath))
+        {
+            if (ReadSequence() > 0) throw new InvalidDataException("Signed feed cache is missing. Ask the server operator to publish a newer sequence.");
+            return;
+        }
         if (new FileInfo(CachePath).Length > FeedVerifier.MaxEnvelopeBytes) throw new InvalidDataException("Cached feed exceeds its size limit.");
         Volatile.Write(ref current, FeedVerifier.Verify(File.ReadAllBytes(FileSafety.NormalizeRegularPath(Path.GetFullPath(CachePath))), publicKeyPem, DateTimeOffset.UtcNow, ReadSequence(), allowExpired: true));
     }
@@ -141,7 +145,10 @@ public sealed class FeedRepository(string directory)
             // Keep the received envelope in its existing buffer through verification and staging.
             var raw = bytes.GetBuffer().AsMemory(0, (int)bytes.Length);
             var previous = Current;
-            var verified = FeedVerifier.Verify(raw.Span, settings.PublicKeyPem, DateTimeOffset.UtcNow, Math.Max(ReadSequence(), previous?.Payload.Sequence ?? 0));
+            var committedSequence = ReadSequence();
+            var verified = FeedVerifier.Verify(raw.Span, settings.PublicKeyPem, DateTimeOffset.UtcNow, Math.Max(committedSequence, previous?.Payload.Sequence ?? 0));
+            if (previous is null && committedSequence > 0 && verified.Payload.Sequence == committedSequence && !File.Exists(CachePath))
+                throw new InvalidDataException("Signed feed cache is missing. Ask the server operator to publish a newer sequence.");
             if (previous is not null && verified.Payload.Sequence == previous.Payload.Sequence
                 && !previous.MatchesSignedPayload(verified))
                 throw new InvalidDataException("Feed content changed without a sequence increase.");
