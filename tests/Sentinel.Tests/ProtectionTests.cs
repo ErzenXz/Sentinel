@@ -80,7 +80,8 @@ internal static class ProtectionTests
         });
         test("UTF-8 feed decoding accepts reordered escaped base64 and rejects missing or malformed encodings", () => {
             var signed = JsonSerializer.Deserialize<SignedFeed>(Bundle([new(new string('a', 64), "Transport fixture", "Local test")]), FeedVerifier.Json)!;
-            var reordered = JsonSerializer.SerializeToUtf8Bytes(new { SIGNATURE = signed.Signature, PAYLOAD = signed.Payload, ALGORITHM = signed.Algorithm, SCHEMA = signed.Schema }, FeedVerifier.Json);
+            var encodedPayload = "\"\\u" + ((int)signed.Payload[0]).ToString("X4") + signed.Payload[1..] + "\"";
+            var reordered = Encoding.UTF8.GetBytes($"{{\"SIGNATURE\":{JsonSerializer.Serialize(signed.Signature)},\"PAYLOAD\":{encodedPayload},\"ALGORITHM\":\"RSA-SHA256\",\"SCHEMA\":1}}");
             Check(FeedVerifier.Verify(reordered, PublicKey, DateTimeOffset.UtcNow).Hashes.Count == 1);
             foreach (var invalid in new[] {
                 "{\"schema\":1,\"algorithm\":\"RSA-SHA256\",\"payload\":null,\"signature\":\"AA==\"}",

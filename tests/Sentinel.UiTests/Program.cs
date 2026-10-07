@@ -229,7 +229,7 @@ internal static partial class Program
                     search.Text = "no-matching-fixture"; await Drain();
                     Check("Finding search presents an empty view without discarding evidence", table.Items.Count == 0 && Field<ObservableCollection<FileFinding>>(window, "engineFindings").Count == 3);
                     search.Text = ""; await Drain(); table.SelectedIndex = 0; await Drain();
-                    evidence.BringIntoView(); await Drain(); Capture(window, "selected-finding-" + (int)width, true);
+                    FindButton(window, "Scan file again").BringIntoView(); await Drain(); Capture(window, "selected-finding-" + (int)width, true);
                     Field<ScrollViewer>(window, "PageScroll").ScrollToTop(); await Drain();
                 }
                 if (page == "Firewall")
@@ -401,6 +401,7 @@ internal static partial class Program
         var report = new { schemaVersion = 1, renderedAt = DateTimeOffset.UtcNow, commit = Environment.GetEnvironmentVariable("GITHUB_SHA"),
             description = "Actual Windows WPF fixture profile and injected read-only status data. No paid AI or OS protection change. This does not certify native ARM64, Narrator, OS high-contrast, hardware DPI, UAC, DPAPI recovery or enforcement. Resource profiling phases are test-only diagnostics, not comparative AV benchmarks.",
             profileRun, rendering, resourceSamples,
+            runtimeConfiguration = new { tieredCompilation = Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "runtime default" },
             os = RuntimeInformation.OSDescription, architecture = RuntimeInformation.ProcessArchitecture.ToString(), dotnet = Environment.Version.ToString(), elevatedRunner = IsAdministrator(),
             exitCode, checks, captures, layoutIssues, failures, bindingErrors = bindingErrors.Messages.ToArray(),
             fixtureReads = runner.Calls, canceledFixtureReads = runner.CanceledReads, unexpectedScripts = runner.UnexpectedCalls.ToArray(), idle, retention };
