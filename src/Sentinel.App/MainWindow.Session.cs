@@ -124,7 +124,9 @@ public partial class MainWindow
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromMinutes(2));
             var refresh = await feeds.RefreshAsync(http, settings, deadline.Token);
             if (refresh.HashSetChanged) PostEngine(() => {
-                if (!lifetime.IsCancellationRequested && generation == updaterGeneration) monitor?.RequestRecovery();
+                // A committed change still needs recovery if automatic checking was
+                // disabled/restarted while this dispatcher callback was queued.
+                if (!lifetime.IsCancellationRequested) monitor?.RequestRecovery();
             });
         }, state => PostEngine(() => {
             if (lifetime.IsCancellationRequested || generation != updaterGeneration) return;

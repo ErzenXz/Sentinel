@@ -106,6 +106,9 @@ internal static class StreamArchiveTests
             }
             await File.WriteAllBytesAsync(path, Tar(TarEntryFormat.Pax, ("ordinary", fixture)));
             Check((await scanner.ScanPathAsync(path)).Incomplete && Directory.GetFileSystemEntries(tmp.Root).Length == 1);
+            var gnu = Tar(TarEntryFormat.Ustar, ("ordinary", fixture)); "ustar  \0"u8.CopyTo(gnu.AsSpan(257)); Checksum(gnu);
+            var renamed = tmp.PathFor("gnu-renamed.bin"); await File.WriteAllBytesAsync(renamed, gnu);
+            Check((await scanner.ScanPathAsync(renamed)).Incomplete); // Recognize the family before rejecting its unsupported layout.
         });
         test("TAR corrupt headers, forged sizes, truncated content and hidden trailers are rejected", async () => {
             using var tmp = new Temporary(); var fixture = "header validation fixture"u8.ToArray(); var scanner = new FileScanner(Feed(fixture)); var path = tmp.PathFor("corrupt.tar");

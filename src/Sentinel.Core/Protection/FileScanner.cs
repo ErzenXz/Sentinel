@@ -199,7 +199,7 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
     internal static bool IsZipMagic(ReadOnlySpan<byte> bytes) => bytes.Length >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4b && (bytes[2] == 3 && bytes[3] == 4 || bytes[2] == 5 && bytes[3] == 6);
     internal static ArchiveFormat ArchiveMagic(ReadOnlySpan<byte> head) => IsZipMagic(head) ? ArchiveFormat.Zip
         : head.Length >= 2 && head[0] == 0x1f && head[1] == 0x8b ? ArchiveFormat.Gzip
-        : head.Length >= 263 && head.Slice(257, 6).SequenceEqual("ustar\0"u8) ? ArchiveFormat.Tar : ArchiveFormat.None;
+        : head.Length >= 262 && head.Slice(257, 5).SequenceEqual("ustar"u8) ? ArchiveFormat.Tar : ArchiveFormat.None;
     private static ArchiveFormat ArchiveName(string name)
     {
         if (IsZipName(name)) return ArchiveFormat.Zip;
