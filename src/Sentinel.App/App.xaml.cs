@@ -3,10 +3,14 @@ using System.Windows;
 namespace Sentinel.App;
 public partial class App : System.Windows.Application
 {
+    private readonly bool verificationStartup;
+    public App() { }
+    internal App(bool verificationStartup) => this.verificationStartup = verificationStartup;
     private ProfileInstance? instance;
     private bool themeRefreshPending;
     protected override void OnStartup(StartupEventArgs e)
     {
+        if (verificationStartup) { base.OnStartup(e); return; }
         instance = new ProfileInstance();
         if (!instance.Acquire(e.Args.Contains("--wait-for-profile")))
         {

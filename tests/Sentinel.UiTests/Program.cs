@@ -52,7 +52,7 @@ internal static class Program
         Stage("Creating the isolated WPF application");
         var temporary = Path.Combine(AppContext.BaseDirectory, "ui-fixtures-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
-        var app = new VerificationApp { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        var app = new Sentinel.App.App(verificationStartup: true) { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         app.InitializeComponent();
         RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
         Theme.Apply();
@@ -349,11 +349,5 @@ internal static class Program
         public ConcurrentQueue<string> Messages { get; } = new();
         public override void Write(string? message) { if (!string.IsNullOrWhiteSpace(message) && Messages.Count < 128) Messages.Enqueue(message); }
         public override void WriteLine(string? message) => Write(message);
-    }
-    // Application queues OnStartup in its constructor, even with Dispatcher.Run.
-    // Keep real application resources/lifecycle without opening a production window.
-    private sealed class VerificationApp : Sentinel.App.App
-    {
-        protected override void OnStartup(StartupEventArgs e) { }
     }
 }
