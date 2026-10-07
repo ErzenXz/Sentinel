@@ -101,9 +101,9 @@ internal static class Program
         Console.WriteLine(message);
         File.AppendAllText(Path.Combine(output, "progress.txt"), DateTimeOffset.UtcNow.ToString("O") + " " + message + "\n");
     }
-    private static void Check(string name, bool passed)
+    private static void Check(string name, bool passed, object? details = null)
     {
-        checks.Add(new { name, passed });
+        checks.Add(new { name, passed, details });
         Console.WriteLine((passed ? "PASS " : "FAIL ") + name);
         if (!passed) failures.Add(name);
     }
@@ -200,7 +200,8 @@ internal static class Program
                     var admin = IsAdministrator();
                     Check("Quarantine eligibility respects the actual runner privilege", FindButton(window, "Quarantine selected…").IsEnabled == !admin);
                     var evidence = LogicalDescendants<TextBox>(window).Single(t => AutomationProperties.GetName(t) == "Selected finding evidence");
-                    Check("Selected full evidence and hash are available", FindButton(window, "Copy SHA-256").IsEnabled && evidence.Text.Contains(new string('A', 64)));
+                    Check("Selected full evidence and hash are available", FindButton(window, "Copy SHA-256").IsEnabled && evidence.Text.Contains(new string('A', 64)),
+                        new { copyEnabled = FindButton(window, "Copy SHA-256").IsEnabled, evidence = evidence.Text, selected = table.SelectedItem });
                     var search = Descendants<TextBox>(window).Single(t => AutomationProperties.GetName(t) == "Search findings by path, evidence, or SHA-256");
                     search.Text = "no-matching-fixture"; await Drain();
                     Check("Finding search presents an empty view without discarding evidence", table.Items.Count == 0 && Field<ObservableCollection<FileFinding>>(window, "engineFindings").Count == 3);
@@ -296,6 +297,8 @@ internal static class Program
         Status(window, "Native Windows render • fixture data • verification only; no protection setting changed.");
         window.UpdateLayout(); var root = (FrameworkElement)window.Content;
         if (inspect) InspectLayout(root, name);
+        if (inspect) Check("Button text follows its control brush in " + name,
+            Descendants<Button>(root).Where(b => b.IsVisible && b.Content is string).All(b => Descendants<TextBlock>(b).Where(t => !string.IsNullOrEmpty(t.Text)).All(t => Equals(t.Foreground, b.Foreground))));
         var width = (int)Math.Ceiling(root.ActualWidth); var height = (int)Math.Ceiling(root.ActualHeight);
         if (width is < 1 or > 4000 || height is < 1 or > 4000) throw new InvalidOperationException("Unexpected render size.");
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);

@@ -97,6 +97,14 @@ public partial class MainWindow
         void ApplyFilter() { findingsSearch = search.Text; findingsScope = (FindingScope)scope.SelectedItem; table.SelectedItem = null; view.Filter = item => FindingSearch.Matches((FileFinding)item,findingsSearch,findingsScope); view.Refresh(); }
         search.TextChanged += (_, _) => ApplyFilter(); scope.SelectionChanged += (_, _) => ApplyFilter();
         var shown = Note(""); shown.SetBinding(TextBlock.TextProperty,new Binding("Count") { Source=view, StringFormat="Showing {0} retained findings" });
+        // ListCollectionView directly subscribes to our window-lifetime collection.
+        // A discarded page must release that subscription and its filter closure.
+        releasePage = () => {
+            table.ItemsSource = null;
+            BindingOperations.ClearBinding(shown, TextBlock.TextProperty);
+            view.Filter = null;
+            view.DetachFromSourceCollection();
+        };
         body.Children.Add(SectionHeader("Results", shown));
         body.Children.Add(Row(Field("Find a result", search), Field("Show", scope))); ApplyFilter(); table.ItemsSource = view;
         var main = new StackPanel();
@@ -124,6 +132,7 @@ public partial class MainWindow
         var statusTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         statusTimer.Tick += (_, _) => monitorStatus.Text = MonitorDescription();
         monitorStatus.Loaded += (_, _) => statusTimer.Start(); monitorStatus.Unloaded += (_, _) => statusTimer.Stop();
+        releasePage += () => statusTimer.Stop();
         watch.Children.Add(Row(Button("Choose folder & start…", () => {
             if (monitor is not null) { StatusText = "Stop the current monitor before starting another."; return; }
             var dialog = new OpenFolderDialog(); if (dialog.ShowDialog() != true) return;

@@ -49,7 +49,6 @@
         <sys:Double x:Key="DisabledOpacity">1</sys:Double>
 
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style TargetType="Button">

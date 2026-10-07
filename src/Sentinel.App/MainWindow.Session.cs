@@ -175,6 +175,7 @@ public partial class MainWindow
         try { await StopFeedUpdates(); await StopMonitor(); }
         catch (Exception) { /* Shutdown still releases the window and network resources. */ }
         if (operationFinished is { } pending) await pending.Task;
+        ReleasePage();
         http.Dispose(); Close();
     }
     private void SessionPreferencesCard()

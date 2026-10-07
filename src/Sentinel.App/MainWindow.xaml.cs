@@ -27,6 +27,12 @@ public partial class MainWindow : Window
     private string page = "Overview";
     private bool busy;
     private bool storageFailed;
+    private Action? releasePage;
+    private void ReleasePage()
+    {
+        var release = releasePage; releasePage = null;
+        release?.Invoke();
+    }
 
     public MainWindow() : this(new PowerShellRunner()) { }
     internal MainWindow(IScriptRunner runner)
@@ -55,6 +61,7 @@ public partial class MainWindow : Window
         page = name;
         PageTitle.Text = PageLabel(name);
         PageScroll.ScrollToTop();
+        ReleasePage();
         PageBody.Children.Clear();
         foreach (var (label, button) in nav)
         {
