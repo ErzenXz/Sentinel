@@ -21,11 +21,11 @@ This job runs on Windows x64. Windows ARM64 builds are separate; native ARM64 ex
 WPF rendering follows [Microsoft's visual encoding example](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/how-to-encode-a-visual-to-an-image-file). The fixture suppresses production window creation because the [WPF application constructor queues startup before its dispatcher runs](https://source.dot.net/PresentationFramework/System/Windows/Application.cs.html).
 
 
-## Recorded v0.10 candidate
+## Recorded v0.11 candidate
 
-[Windows run 37650862500](https://github.com/ErzenXz/Sentinel/actions/runs/37650862500) passed **112 assertions**, produced **27 captures**, and reported no binding/layout errors. Both Windows x64/ARM64 build/test/package jobs passed. The verifier executed on x64 with an elevated hosted runner, so it checked disabled elevated-session remediation/AI rather than standard-user execution. [Raw report](benchmarks/native-ui-v0.10-windows-x64.json).
+[Windows run 37657526266](https://github.com/ErzenXz/Sentinel/actions/runs/37657526266) passed **116 assertions**, produced **27 captures**, and reported no binding/layout errors, with **0/12** discarded scanner views retained. Both Windows x64/ARM64 build/test/package jobs passed. New assertions exercise actual TGZ-contained review, action eligibility, history and the assembly-derived version label. The verifier executed on x64 with an elevated hosted runner; standard-user remediation and native ARM64 execution remain separate acceptance work. [Raw report](benchmarks/native-ui-v0.11-windows-x64.json).
 
-These unchanged PNGs come from that native run. They show fixture data and an administrator session; they do not describe a real user's protection status.
+These PNGs come from that native run. They show harmless fixture data and an administrator session; they do not describe a real user's protection status. Selected-evidence captures scroll to its actions, so some earlier/lower content lies outside the viewport and remains reachable by scrolling.
 
 ![Native Windows Home with harmless fixture data](images/native-home-windows-x64-fixture.png)
 
