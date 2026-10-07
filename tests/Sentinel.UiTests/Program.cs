@@ -207,6 +207,8 @@ internal static class Program
                     search.Text = "no-matching-fixture"; await Drain();
                     Check("Finding search presents an empty view without discarding evidence", table.Items.Count == 0 && Field<ObservableCollection<FileFinding>>(window, "engineFindings").Count == 3);
                     search.Text = ""; await Drain(); table.SelectedIndex = 0; await Drain();
+                    evidence.BringIntoView(); await Drain(); Capture(window, "selected-finding-" + (int)width, true);
+                    Field<ScrollViewer>(window, "PageScroll").ScrollToTop(); await Drain();
                 }
                 if (page == "Firewall")
                 {

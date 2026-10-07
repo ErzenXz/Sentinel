@@ -51,3 +51,14 @@ The same benchmark harness/output directory was compiled first against tag `v0.7
 Folder allocations differ by 16 bytes; these samples show no material regression in the existing offline core workloads. The small report/timing differences do not establish a new performance gain. This check excludes active monitoring, WPF, Defender and Windows memory; the new background work deliberately adds reads for initial coverage and recovery.
 
 [v0.7 baseline raw output](benchmarks/scanner-baseline-v0.7.0-macos-arm64.json) · [v0.8 raw output](benchmarks/scanner-v0.8.0-macos-arm64.json)
+
+
+## v0.9 native scanner-page retention
+
+A Windows Server 2025 x64 / .NET 10.0.12 fixture run found that all twelve scanner collection views remained alive after twelve page visits and forced collection. Managed heap grew from 9,196,032 to 13,936,168 bytes during that sequence. Each view subscribed directly to the window-lifetime finding collection and retained its filter/page objects. The app now clears its table/count binding/filter and detaches the old view on navigation and shutdown; its page timer also stops explicitly.
+
+The passing candidate retained **zero of twelve** old views. Its managed heap was 5,666,520 bytes before and 5,476,232 afterward. These readings diagnose the leak; they are not a controlled percentage comparison of overall process RAM. The baseline normal-width window was clamped by the hosted display to 1044 × 788; the final harness enforces 1200 × 820 and also tests 960 × 680. Harness assertions/captures increased while addressing those verification limits. Retention counts are the regression gate; warm caches, GC, fixture layout and process working set are separate.
+
+The candidate's three-second hosted software-rendered fixture sample consumed 2,546.875 ms process CPU with a 161,837,056-byte working set, 67,452,928 private bytes and 6,568,608 managed bytes. Only one ApplicationIdle dispatcher operation ran during that sample. The high CPU result needs investigation/measurement on ordinary Windows hardware; its cause is not established. The test forces software rendering and follows many render-to-bitmap captures, so this is neither an ordinary production idle measurement nor evidence of an idle CPU improvement. No Windows throughput, whole-process memory-saving percentage or comparative AV claim is made.
+
+[Baseline raw native output](benchmarks/native-ui-baseline-v0.8-windows-x64.json) · [Native method and limitations](NATIVE-UI-VERIFICATION.md) · [First passing candidate job](https://github.com/ErzenXz/Sentinel/actions/runs/37641620009)

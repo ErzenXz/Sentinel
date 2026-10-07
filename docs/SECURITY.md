@@ -1,6 +1,6 @@
 # Security boundaries
 
-Sentinel v0.8 has an independent exact-hash scanner and recoverable quarantine, alongside Microsoft Defender/Windows Firewall controls. It has no signed on-access minifilter, protected anti-malware service, tamper resistance, broad archive-format coverage, behavioral ransomware engine, packet-inspection engine, or AV Security Center registration. It is not certified as an antivirus replacement.
+Sentinel v0.9 has an independent exact-hash scanner and recoverable quarantine, alongside Microsoft Defender/Windows Firewall controls. It has no signed on-access minifilter, protected anti-malware service, tamper resistance, broad archive-format coverage, behavioral ransomware engine, packet-inspection engine, or AV Security Center registration. It is not certified as an antivirus replacement.
 
 - ZIP contents are streamed without extraction, with central/local metadata preflight, CRC checks and bounded entry/depth/expansion budgets. Unsupported/encrypted contents remain incomplete. Whole-container quarantine needs explicit confirmation and revalidation; entry names are never filesystem destinations.
 - Scan files locally against bundled/verified hashes. New/modified malware may not match. Review-only patterns never authorize quarantine. Missing/read-failed files are not safe verdicts.

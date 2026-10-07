@@ -2,9 +2,18 @@
 
 MIT-licensed native Windows security application, with an independent local scanner, self-hostable intelligence server, Windows protection controls, and optional AI explanations.
 
-**v0.8.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
+**v0.9.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
 
-## New in v0.8.0
+## New in v0.9.0
+
+- **No retained scanner pages after navigation:** discarded collection views detach from the finding collection, release their filter/count binding and stop their page timer. A native Windows regression changed from 12 retained views to zero after twelve visits.
+- **Correct selection and evidence:** tables require explicit selection, and the selected path, reason and SHA-256 are available together. Selection actions start disabled.
+- **Readable action labels:** primary, quiet, destructive and disabled button text follows its actual control color. Native screenshots exposed the earlier dark labels on green primary buttons.
+- **Native Windows UI verification:** CI renders every real WPF page at normal and minimum sizes, checks both inspector arrangements, exercises pause/resume/cancel and shutdown, detects binding/layout errors and preserves labeled fixture PNGs. Releases now require this job as well as both architecture builds.
+
+[Download v0.9.0](https://github.com/ErzenXz/Sentinel/releases/tag/v0.9.0) · [Release notes](docs/RELEASE-0.9.0.md) · [Native verification and limits](docs/NATIVE-UI-VERIFICATION.md)
+
+## Included from v0.8.0
 
 - **Monitoring covers existing files:** starting or resuming a selected folder now runs a Low impact scan while incoming changes stay queued.
 - **Recovery after folder moves and missed changes:** directory-name notifications, watcher overflow, full file queues, successful signed-feed updates and the new Recheck watched folder button request a bounded rescan. Requests coalesce; one worker handles file changes and recovery, with a 30-second cooldown between rechecks.
@@ -33,7 +42,7 @@ MIT-licensed native Windows security application, with an independent local scan
 - Monitoring, scheduling, threat-list details and optional Jev review use expandable sections. Everyday preferences and provider/server connections live in Settings; setup links open the right section directly.
 - A global busy indicator and Stop waiting action, keyboard shortcuts, focus outlines, named inputs and coalesced status announcements. Scan progress replaces one pending slot and updates the UI at most five times per second, plus its final flush.
 
-Claude Opus 5.5 implemented the visual redesign through the requested CLI. The UI remains WPF/C#; no Claude runtime is embedded. Native rendering and accessibility checks still require Windows. See [v0.6.1 release notes](docs/RELEASE-0.6.1.md) and [UI design and shortcuts](docs/UI-DESIGN.md).
+Claude Opus 5.5 implemented the visual redesign through the requested CLI. The UI remains WPF/C#; no Claude runtime is embedded. Native rendering is now checked on Windows x64; broader accessibility acceptance still requires Windows. See [v0.6.1 release notes](docs/RELEASE-0.6.1.md) and [UI design and shortcuts](docs/UI-DESIGN.md).
 
 ## Included from v0.5
 
@@ -69,7 +78,7 @@ Existing capabilities include Defender quick/full/custom scans and intelligence 
 
 ## Run on Windows
 
-Extract **all files** from the appropriate v0.8.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
+Extract **all files** from the appropriate v0.9.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
 
 Open **File scanner** to scan a file/folder immediately using the bundled public indicator snapshot. Open **Quarantine** to review backups. Use a standard Windows user session for independent file remediation and AI. Windows Firewall/Defender operations can require Settings → About Sentinel & administrator tools → Restart as administrator. AI and personal-file quarantine/restore are disabled in elevated sessions.
 
@@ -98,6 +107,8 @@ dotnet build src/Sentinel.Cli -c Release
 node scripts/verify-engine.mjs
 ```
 
+Run `dotnet run --project tests/Sentinel.UiTests -c Release -- --output artifacts/native-ui` on Windows for native interaction checks and PNGs.
+
 The portable engine tests and real HTTP interoperability test run on macOS/Linux too. WPF compiles with Windows targeting enabled; its native UI and OS operations must run on Windows. Use `scripts/publish.ps1 -Runtime win-x64` or `win-arm64` on Windows to package both executables.
 
 ## Design and limits
@@ -106,6 +117,6 @@ No Electron, embedded browser, telemetry, or bundled LLM. The own scanner uses o
 
 A hash list detects exact published files and misses changed/new malware. We do not yet have kernel-enforced execution blocking, broad archive-format coverage, ransomware behavioral blocking, a protected service, or AV certification. These require sustained engineering and independent evaluation.
 
-Read [v0.8.0 release notes](docs/RELEASE-0.8.0.md), [performance measurements](docs/PERFORMANCE.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
+Read [v0.9.0 release notes](docs/RELEASE-0.9.0.md), [performance measurements](docs/PERFORMANCE.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
 
 Sentinel code is MIT licensed. Embedded ESET indicator data remains BSD two-clause licensed; ESET does not endorse Sentinel. No OpenClaw source code or third-party malware binaries are bundled.

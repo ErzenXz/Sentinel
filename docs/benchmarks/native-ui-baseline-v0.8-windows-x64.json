@@ -1,0 +1,610 @@
+{
+  "schemaVersion": 1,
+  "renderedAt": "2026-10-07T14:56:03.3680921+00:00",
+  "commit": "a3062bbef2cef3dd07644cc5f7659e4dfc212164",
+  "description": "Actual Windows WPF software-rendered client area, fixture profile and injected read-only status data. The real production control tree, templates, fonts, navigation, local scans and shutdown run. No paid AI or OS protection change. This does not certify native ARM64, Narrator, OS high-contrast, hardware DPI, UAC, DPAPI recovery or enforcement.",
+  "os": "Microsoft Windows 10.0.26100",
+  "architecture": "X64",
+  "dotnet": "10.0.12",
+  "elevatedRunner": true,
+  "exitCode": 1,
+  "checks": [
+    {
+      "name": "Busy startup disables page actions while cancellation and navigation remain reachable",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation during a pending status read does not enable page actions",
+      "passed": true
+    },
+    {
+      "name": "Cancellation restores controls and reaches all fixture requests",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Only fixture snapshot reads ran; no mutation script was requested",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Scanner has retained fixture evidence",
+      "passed": true
+    },
+    {
+      "name": "Quarantine is unavailable without an eligible selection",
+      "passed": true
+    },
+    {
+      "name": "Quarantine eligibility respects the actual runner privilege",
+      "passed": true
+    },
+    {
+      "name": "Selected full evidence and hash are available",
+      "passed": false
+    },
+    {
+      "name": "Finding search presents an empty view without discarding evidence",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Firewall",
+      "passed": true
+    },
+    {
+      "name": "Accessible disclosure expands Optional AI review \u00B7 Jev",
+      "passed": true
+    },
+    {
+      "name": "No network selection can authorize a block or model review",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Applications",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Defender scans",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Quarantine",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Scan history",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects AI advisor",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Activity",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Settings",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Scanner has retained fixture evidence",
+      "passed": true
+    },
+    {
+      "name": "Quarantine is unavailable without an eligible selection",
+      "passed": true
+    },
+    {
+      "name": "Quarantine eligibility respects the actual runner privilege",
+      "passed": true
+    },
+    {
+      "name": "Selected full evidence and hash are available",
+      "passed": false
+    },
+    {
+      "name": "Finding search presents an empty view without discarding evidence",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Firewall",
+      "passed": true
+    },
+    {
+      "name": "Accessible disclosure expands Optional AI review \u00B7 Jev",
+      "passed": true
+    },
+    {
+      "name": "No network selection can authorize a block or model review",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Applications",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Defender scans",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Quarantine",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Scan history",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects AI advisor",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Activity",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Settings",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Accessible disclosure expands Folder monitoring \u00B7 off",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Settings",
+      "passed": true
+    },
+    {
+      "name": "Accessible disclosure expands AI advisor connection",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Forced high-contrast resource path uses Windows system brushes",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Pause remains available outside disabled scan actions",
+      "passed": true
+    },
+    {
+      "name": "Paused scan stops the indeterminate animation",
+      "passed": true
+    },
+    {
+      "name": "Resume restores the scan control and progress animation",
+      "passed": true
+    },
+    {
+      "name": "Cancel while paused saves partial status and restores controls",
+      "passed": true
+    },
+    {
+      "name": "A subsequent scan starts with clean control state",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects File scanner",
+      "passed": true
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Old scanner collection views detach after navigation",
+      "passed": false
+    },
+    {
+      "name": "Navigation selects Home",
+      "passed": true
+    },
+    {
+      "name": "Rendering/navigation never requested an OS write through the injected runner",
+      "passed": true
+    },
+    {
+      "name": "Shutdown closes the window and settles pending work",
+      "passed": true
+    }
+  ],
+  "captures": [
+    {
+      "name": "startup-busy",
+      "file": "startup-busy.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "home-1200",
+      "file": "home-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "file-scanner-1200",
+      "file": "file-scanner-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "firewall-1200",
+      "file": "firewall-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "applications-1200",
+      "file": "applications-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "defender-scans-1200",
+      "file": "defender-scans-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "quarantine-1200",
+      "file": "quarantine-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "scan-history-1200",
+      "file": "scan-history-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "ai-advisor-1200",
+      "file": "ai-advisor-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "activity-1200",
+      "file": "activity-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "settings-1200",
+      "file": "settings-1200.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "home-960",
+      "file": "home-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "file-scanner-960",
+      "file": "file-scanner-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "firewall-960",
+      "file": "firewall-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "applications-960",
+      "file": "applications-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "defender-scans-960",
+      "file": "defender-scans-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "quarantine-960",
+      "file": "quarantine-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "scan-history-960",
+      "file": "scan-history-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "ai-advisor-960",
+      "file": "ai-advisor-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "activity-960",
+      "file": "activity-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "settings-960",
+      "file": "settings-960.png",
+      "width": 944,
+      "height": 641,
+      "logicalWindowWidth": 960,
+      "logicalWindowHeight": 680,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "monitoring-details",
+      "file": "monitoring-details.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "provider-settings",
+      "file": "provider-settings.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "scanner-system-color-branch",
+      "file": "scanner-system-color-branch.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    },
+    {
+      "name": "scan-paused",
+      "file": "scan-paused.png",
+      "width": 1028,
+      "height": 749,
+      "logicalWindowWidth": 1044,
+      "logicalWindowHeight": 788,
+      "fixtureData": true,
+      "dpi": 96
+    }
+  ],
+  "layoutIssues": [],
+  "failures": [
+    "Selected full evidence and hash are available",
+    "Selected full evidence and hash are available",
+    "Old scanner collection views detach after navigation"
+  ],
+  "bindingErrors": [],
+  "fixtureReads": 6,
+  "canceledFixtureReads": 3,
+  "unexpectedScripts": [],
+  "idle": {
+    "description": "Three-second idle UI fixture sample after verification and collection; excludes production PowerShell reads, Defender, AI, on-access drivers and real workloads. Not a comparative AV benchmark.",
+    "seconds": 3.0046388,
+    "cpuMilliseconds": 2703.125,
+    "workingSetBytes": 161734656,
+    "privateBytes": 67477504,
+    "managedBytes": 15070216,
+    "processors": 4
+  },
+  "retention": {
+    "exitedScannerViews": 12,
+    "retainedScannerViews": 12,
+    "managedBytesBefore": 9196032,
+    "managedBytesAfter": 13936168
+  }
+}

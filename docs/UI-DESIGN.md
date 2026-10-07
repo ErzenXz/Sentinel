@@ -1,4 +1,4 @@
-# Native UI — v0.8.0
+# Native UI — v0.9.0
 
 Sentinel uses WPF, Segoe UI and Segoe MDL2 Assets. The redesign uses a charcoal navigation rail, a warm light canvas and dark-green primary actions. Sections use thin separators, with one scan entry panel on Home. No new dependencies, image assets, web view, animation loop or model runtime are shipped.
 
@@ -38,10 +38,14 @@ The 42 initial brush values match Theme.Apply. High contrast substitutes system 
 
 Claude Code was explicitly invoked with `claude -p --model claude-opus-5-5 --effort medium`. It implemented the shell, shared styles, page layouts and initial three-page mockup. Its source changes were reviewed and built; final adjustments address column widths, inspector geometry, selected rail focus, Home density, timing placement, preview hidden states, stale-feed information and the actual Jev payload schema. No credentials, user files or live security snapshots were supplied for this design work.
 
-The Mac images are browser-rendered source-based mockups with example data, not Windows screenshots. They share native colors, desktop labels and geometry, with Arial/Lucide fallbacks; the preview adds narrower layouts below the native window minimum. Windows fonts, DPI, Narrator, high-contrast behavior, glyph appearance, dropdowns, sorting/clipboard and layout near the inspector breakpoint still require [Windows acceptance checks](WINDOWS-ACCEPTANCE.md).
+The earlier Mac previews are browser-rendered source-based mockups with example data. v0.9 adds actual Windows WPF client-area renders with labeled fixture data in CI; see [native verification](NATIVE-UI-VERIFICATION.md). They share native colors, desktop labels and geometry, with Arial/Lucide fallbacks; the preview adds narrower layouts below the native window minimum. Windows fonts, DPI, Narrator, high-contrast behavior, glyph appearance, dropdowns, sorting/clipboard and layout near the inspector breakpoint still require [Windows acceptance checks](WINDOWS-ACCEPTANCE.md).
 
 Glyph identifiers were checked against [Microsoft's Segoe MDL2 reference](https://learn.microsoft.com/en-us/windows/apps/design/iconography/segoe-ui-symbol-font); native appearance remains a Windows acceptance check.
 
 ## Monitoring updates in v0.8
 
 Folder monitoring explains initial coverage, Low impact mode, the five-minute recovery budget and incomplete results. A Recheck watched folder action shares the same worker and cooldown as automatic recovery. Status counts update once a second while the monitoring section is loaded; the timer stops when the page unloads. Worker findings enter a 512-item deduplicated inbox and the session timer drains at most 128 every 200 ms. Notifications are count-only and batch detections; monitor callbacks no longer enqueue UI closures per finding or per problem.
+
+## Native fixes in v0.9
+
+Discarded scanner pages detach their collection view, clear its count binding/filter and stop their monitor status timer. Navigation and shutdown release the page. Tables no longer synchronize selection to the collection current item, so a first row cannot become implicitly selected before the evidence inspector is ready. String button labels inherit the button brush; primary, quiet, destructive and disabled labels now follow the actual control colors, including system-color resources. The new native job checks both inspector arrangements and selected full evidence.
