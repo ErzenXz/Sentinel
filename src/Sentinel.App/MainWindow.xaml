@@ -12,7 +12,7 @@
                 <StackPanel DockPanel.Dock="Bottom">
                     <Border Height="1" Background="{DynamicResource RailHoverSurface}" Margin="4,8,4,8"/>
                     <StackPanel x:Name="SettingsHost"/>
-                    <TextBlock Text="v0.6 · Development preview" FontSize="11" Foreground="{DynamicResource RailMuted}" Margin="12,10,0,0"/>
+                    <TextBlock Text="v0.7 · Development preview" FontSize="11" Foreground="{DynamicResource RailMuted}" Margin="12,10,0,0"/>
                     <TextBlock x:Name="Footprint" FontSize="11" Foreground="{DynamicResource RailMuted}" Margin="12,2,0,0"
                                ToolTip="Working set of this window process. Microsoft Defender and AI providers are excluded."/>
                 </StackPanel>
@@ -48,9 +48,12 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="60" VerticalAlignment="Center">
-                        <TextBlock x:Name="Status" Text="Starting Sentinel…" FontSize="12" Foreground="{DynamicResource Muted}" AutomationProperties.LiveSetting="Polite" AutomationProperties.HelpText="Status of the current Sentinel operation"/>
+                        <TextBlock x:Name="Status" Text="Starting Sentinel…" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" AutomationProperties.HelpText="Status of the current Sentinel operation"/>
                     </ScrollViewer>
-                    <Button x:Name="StopOperation" Grid.Column="2" Content="Stop waiting" Style="{StaticResource Quiet}" Visibility="Collapsed" Margin="16,0,0,0" MinHeight="28" AutomationProperties.HelpText="Requests cancellation. Windows operations may continue independently."/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button x:Name="PauseScan" Content="Pause scan" Style="{StaticResource Quiet}" Visibility="Collapsed" Margin="12,0,0,0" MinHeight="28" AutomationProperties.HelpText="Pauses local scanning at the next checkpoint. Resume or cancel the scan while paused."/>
+                        <Button x:Name="StopOperation" Content="Stop waiting" Style="{StaticResource Quiet}" Visibility="Collapsed" Margin="8,0,0,0" MinHeight="28" AutomationProperties.HelpText="Requests cancellation. Windows operations may continue independently."/>
+                    </StackPanel>
                     <ProgressBar x:Name="BusyProgress" Grid.Row="1" Grid.ColumnSpan="3" Height="2" Margin="0,6,0,0" Visibility="Collapsed" BorderThickness="0" Foreground="{DynamicResource Accent}" Background="{DynamicResource SeparatorSurface}" AutomationProperties.Name="Operation in progress"/>
                 </Grid>
             </Border>

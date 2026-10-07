@@ -1,0 +1,2 @@
+# Keep source and release documentation consistent across Windows and Unix builders.
+* text=auto eol=lf

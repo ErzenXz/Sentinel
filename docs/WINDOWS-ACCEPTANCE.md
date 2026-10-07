@@ -61,3 +61,10 @@ The Node server and cross-language signed-feed flow were tested locally. Docker/
 
 39. Check selected and unselected navigation focus in every Windows high-contrast palette. Read chip text in verdict/priority columns with Narrator, sort those columns and copy values. Inspect all new MDL2 glyphs, the Expander UIA expand/collapse pattern, native dropdowns and disabled controls.
 40. Resize around the 820-pixel content breakpoint; confirm the 320-pixel evidence inspector switches without layout jitter. Verify result labels and numeric headers fit, long evidence remains selectable, Home's compact rows grow for text scaling, and scan timing below results remains reachable by keyboard and direct disclosure links.
+
+## v0.7 scan controls and resource additions
+
+41. On x64 and ARM64, scan benign wide/deep folders and ZIPs in both modes. Check pause/resume, rapid toggles, page navigation, Ctrl+O while busy, Tab to status controls, Narrator labels, high contrast and the 960 × 680 layout. An in-flight read may finish before pause; paused progress must not imply completion. Cancel and Exit while paused must settle, close handles, save partial findings and restore controls for the next scan.
+42. Test read/reparse/rename changes during streaming traversal, hidden/system files, OneDrive placeholders, junctions, exact entry bounds, long paths and depth limits. Compare complete hashes/verdicts across modes. Low-impact scan mode does not pause the monitor or Defender.
+43. Measure startup/idle working set and CPU, wide/large/ZIP scan throughput, peak heap/working set, first finding latency, report/history load, low-impact desktop responsiveness and paused resource use on x64/ARM64, with Defender enabled. Run the published benchmark on a quiet host and record raw results; do not infer Windows savings from Mac managed-allocation samples.
+44. Import older reports, export/cancel large reports, exceed the 16 MiB bound, and verify existing destinations/staging recovery. Confirm mode and directory-level metadata survive export/import while remediation still rescans against current intelligence.

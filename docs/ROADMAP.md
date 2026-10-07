@@ -1,10 +1,12 @@
 # Roadmap
 
-## Delivered through v0.6
+## Delivered through v0.7
 
 Native Windows UI; independent hash scanning with a bundled public IOC snapshot; self-hostable signed feeds; ESET refresh and optional MalwareBazaar metadata import; conservative review patterns; chunked authenticated quarantine/restore; best-effort folder monitoring; scheduled offline scans; CLI; Defender/Firewall controls; configurable AI explanations; bounded ZIP/nested scanning, whole-container confirmation, retained/importable scan reports and partial cancellation, generation-aware monitoring, schedule status, source refresh health, and security-focused portable/server/interoperability tests. v0.4 adds opt-in tray persistence, count-only notifications, folder resume, six-hour signed-feed checks, finding/history filters, model metadata discovery, high-contrast resources and session/shutdown coordination. v0.5 adds bounded one-shot TCP/profile/process capture, deterministic firewall review, selected-only publisher inspection with identity revalidation, optional Jev typed decisions, a bounded single-flight review cache, native C# hosting informed by fx research, and CLI review/benchmark commands.
 
 v0.6 reorganizes the native WPF interface around scanning, timestamped Windows status and reviewing findings. It adds consistent controls/tables, grouped navigation with pinned Settings, advanced disclosures, direct settings links, selection-aware actions, keyboard shortcuts, screen-reader names/status announcements and bounded UI progress updates. Native Windows visual/accessibility acceptance remains required.
+
+v0.7 adds cooperative pause/resume/cancel, low-impact local/CLI scans, depth-bounded streaming traversal and native metadata use, shared read prefixes, catalog text compaction, streamed/capped report I/O and CLI JSON, reproducible allocation/heap comparisons, and gated tagged-release packaging. Native Windows performance and interaction acceptance remain required.
 
 ## Next release gates
 

@@ -1,4 +1,4 @@
-# Native UI — v0.6.1
+# Native UI — v0.7.0
 
 Sentinel uses WPF, Segoe UI and Segoe MDL2 Assets. The redesign uses a charcoal navigation rail, a warm light canvas and dark-green primary actions. Sections use thin separators, with one scan entry panel on Home. No new dependencies, image assets, web view, animation loop or model runtime are shipped.
 
@@ -21,7 +21,7 @@ AI is optional. The advisor sends a snapshot only after its sharing checkbox is 
 
 The window remains 1200 × 820 by default, minimum 960 × 680, with wrapping and scrolling. The rail is 212 pixels wide; body insets are 36/20/28/24. Titles are 26 pixels, section headings 16, body 13 and notes 12. Buttons/inputs are at least 34 pixels high; grid rows are 38 and headers 34. Home review rows are at least 48 including padding, growing for wrapped content. Focus rings use separate page/rail resources; the selected rail item uses HighlightText on Highlight in high contrast.
 
-Busy operations disable page controls while navigation, scrolling and Stop waiting remain reachable. Progress remains indeterminate. Worker scan updates replace one pending record, sampled every 200 ms with a final flush. Live-region messages retain coalesced 1.5-second notification, including repeated validation feedback.
+Busy operations disable page controls while navigation, scrolling and Stop waiting remain reachable. Local scans expose Pause scan / Resume scan and Cancel scan in the status bar; pause requests apply at the next checkpoint and stop the indeterminate animation. Cancellation stays reachable while paused. Other operations keep Stop waiting. File scanner provides a session-only Balanced / Low impact selector. Worker scan updates replace one pending record, sampled every 200 ms with a final flush. Live-region messages retain coalesced 1.5-second notification, including repeated validation feedback.
 
 | Token | Normal color |
 |---|---|

@@ -23,6 +23,8 @@ public partial class MainWindow
     private FileFinding? advisorFinding;
     private string findingsSearch = "";
     private FindingScope findingsScope;
+    private ScanMode scanMode;
+    private ScanControl? manualScan;
     private string AdvisorSnapshot() => System.Text.Json.JsonSerializer.Serialize(new {
         windows = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(Sentinel.Core.AiClient.SnapshotForAi(snapshot)),
         sentinel = new { feedSequence = feeds.Current?.Payload.Sequence, hashes = (feeds.Current ?? BuiltInCatalog.Current).Hashes.Count,
@@ -73,6 +75,11 @@ public partial class MainWindow
         toolbar.Children.Add(actions); toolbar.Children.Add(feedChip); top.Children.Add(toolbar);
         top.Children.Add(Note("Checks files against known threat hashes on this PC. ZIP contents are checked within limits. New or changed threats can have no match."));
         top.Children.Add(Note(FeedStatusNote(), FeedNeedsAttention ? "Warning" : "Muted"));
+        var speed = new ComboBox { ItemsSource = new[] { "Balanced", "Low impact" }, SelectedIndex = (int)scanMode, Width = 155 };
+        Named(speed, "Speed for the next Sentinel scan");
+        speed.SelectionChanged += (_, _) => { if (speed.SelectedIndex >= 0) scanMode = (ScanMode)speed.SelectedIndex; };
+        top.Children.Add(Row(Field("Scan speed", speed)));
+        top.Children.Add(Note("Low impact adds brief pauses between read chunks and small files. Both modes use the same detection rules and limits. You can pause, resume or cancel a running local scan from the status bar."));
         if (engineError is not null) top.Children.Add(Note(engineError, "Warning"));
         if (lastScan is { } report)
         {
@@ -107,7 +114,7 @@ public partial class MainWindow
             try { System.Windows.Clipboard.SetText(hash); StatusText = "SHA-256 copied."; } catch (Exception ex) { StatusText = ex.Message; }
         }), table, item => item is FileFinding { Sha256.Length: 64 })))));
         if (lastScan is { } timing)
-            Details(body, "Scan timing & coverage", Note($"{timing.StartedAt.ToLocalTime():g} · {timing.Duration.TotalSeconds:F1}s · {timing.ArchiveEntries:N0} archive entries · {timing.BytesRead / 1024 / 1024:N0} MB read · {timing.ArchiveBytesRead / 1024 / 1024:N0} MB expanded", null));
+            Details(body, "Scan timing & coverage", Note($"{timing.StartedAt.ToLocalTime():g} · {timing.Duration.TotalSeconds:F1}s · {(timing.Mode == ScanMode.LowImpact ? "Low impact" : "Balanced")} · {timing.ArchiveEntries:N0} archive entries · {timing.BytesRead / 1024 / 1024:N0} MB read · {timing.ArchiveBytesRead / 1024 / 1024:N0} MB expanded · {timing.PeakPendingDirectories} pending directory levels", null));
         var limits = AdvancedCard("Threat list & scanner limits");
         limits.Children.Add(Text(FeedDescription(), 12, true));
         limits.Children.Add(Note("Checks SHA-256 locally; no AI request is made. Limits: 256 MB per file, 50,000 filesystem entries, 2,000 displayed findings. ZIP: 2,048 entries per tree, 32 MB per entry, 128 MB expanded, 200:1 ratio, two nested levels. Unreadable, skipped and over-budget items remain incomplete. Review patterns are not known malware."));
@@ -193,14 +200,27 @@ public partial class MainWindow
         var active = monitor; monitor = null; monitorGeneration++; monitorFolder = null; await active.DisposeAsync(); if (page == "Sentinel engine") ShowPage(page); StatusText = "Folder monitoring stopped.";
     }
     private void StartEngineScan(string path) => _ = Run("Sentinel local scan", async token => {
-        engineFindings.Clear();
-        using var progress = new LatestScanProgress(Dispatcher, p => { if (!lifetime.IsCancellationRequested) StatusText = $"Sentinel scan: {p.Scanned:N0} checked · {p.Detected} detections · {p.Review} review · {p.Skipped + p.Errors} incomplete"; });
-        var report = await Task.Run(() => Scanner().ScanPathAsync(path, progress, token));
-        lastScan = report; engineFindings.Clear(); foreach (var item in report.Findings) engineFindings.Add(item);
-        await ScanReports.SaveHistoryAsync(report, ReportsDirectory);
-        NotifyDetection(report.Detected);
-        if (page is "Sentinel engine" or "Overview") ShowPage(page);
+        var control = new ScanControl(scanMode); manualScan = control;
+        PauseScan.Content = "Pause scan"; PauseScan.Visibility = Visibility.Visible; StopOperation.Content = "Cancel scan";
+        try
+        {
+            engineFindings.Clear();
+            using var progress = new LatestScanProgress(Dispatcher, p => { if (!lifetime.IsCancellationRequested) StatusText = (control.IsPaused ? "Pause requested · " : "Sentinel scan: ") + $"{p.Scanned:N0} checked · {p.Detected} detections · {p.Review} review · {p.Skipped + p.Errors} incomplete"; });
+            var report = await Task.Run(() => new FileScanner(feeds.Current, control: control).ScanPathAsync(path, progress, token));
+            manualScan = null; PauseScan.Visibility = Visibility.Collapsed;
+            lastScan = report; engineFindings.Clear(); foreach (var item in report.Findings) engineFindings.Add(item);
+            await ScanReports.SaveHistoryAsync(report, ReportsDirectory);
+            NotifyDetection(report.Detected);
+            if (page is "Sentinel engine" or "Overview") ShowPage(page);
+        }
+        finally { manualScan = null; PauseScan.Visibility = Visibility.Collapsed; StopOperation.Content = "Stop waiting"; }
     }, completedMessage: () => lastScan?.Canceled == true ? "Scan canceled; completed findings saved in Scan history." : lastScan?.Incomplete == true ? "Scan finished with incomplete items; results saved in Scan history." : lastScan?.Detected > 0 ? "Scan finished; detections need review in File scanner." : "Scan finished; results saved in Scan history.");
+    private void ToggleScanPause()
+    {
+        if (manualScan is not { } control) return;
+        if (control.IsPaused) { control.Resume(); PauseScan.Content = "Pause scan"; BusyProgress.IsIndeterminate = true; StatusText = "Sentinel scan resumed."; }
+        else { control.Pause(); PauseScan.Content = "Resume scan"; BusyProgress.IsIndeterminate = false; StatusText = "Pause requested. Reading stops at the next checkpoint; resume or cancel from here."; }
+    }
     private void QuarantineFinding(FileFinding finding)
     {
         if (finding.Verdict is not (FileVerdict.KnownThreat or FileVerdict.TestFile)) { StatusText = "Only exact known-threat or test-file detections can be quarantined. Review patterns cannot remove files."; return; }

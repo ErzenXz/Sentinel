@@ -1,4 +1,15 @@
-# Development verification — 2026-10-05, v0.6.1
+# Development verification — 2026-10-07, v0.7.0
+
+- Portable core tests: **112/112 pass**. Sixteen initial scan/control/resource regressions plus catalog fidelity and metadata/symlink coverage supplement the previous suite; all marker-on-disk detections use benign signed test fixtures.
+- Server tests: **13/13 pass**; server behavior is unchanged apart from version metadata.
+- Actual local Node → .NET HTTP/CLI interoperability passes, including signed download/rollback/expiry/tamper rejection, contained detection, streamed stdout/report equality, low-impact offline history, provider metadata listing and Jev failure/warning preservation against local fixtures, without paid inference or user credentials.
+- Native WPF Release compilation passes with zero warnings/errors. Scan controls remain outside the disabled page content; status text wraps. XAML and named-resource checks accompany compilation. Native interaction/accessibility still needs Windows acceptance.
+- The same harness compares v0.6.1 and v0.7.0 offline core allocations and catalog retention; see [method and raw measurements](PERFORMANCE.md). Timing samples vary and no Windows working-set/startup/comparative AV claim is made.
+- The CI archive packaging path is exercised with the prior verified x64/ARM64 archives. Tagged release jobs require both Windows build/test/package jobs, then validate PE architecture/runtime/version/documentation/integrity and publish checksums. The published run records are the authority for CI results.
+
+## Previous v0.6.1 verification
+
+### 2026-10-05, v0.6.1
 
 UI redesign checks on macOS ARM64 (.NET 10.0.401):
 

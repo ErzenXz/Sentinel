@@ -14,8 +14,22 @@ public sealed class VerifiedFeed
     public IReadOnlyDictionary<string, HashIndicator> Hashes { get; }
     internal VerifiedFeed(FeedPayload payload)
     {
-        Payload = payload;
-        Hashes = payload.Hashes.ToDictionary(x => x.Sha256, StringComparer.OrdinalIgnoreCase);
+        // Labels and source names repeat thousands of times in public IOC lists.
+        // Share identical text inside this catalog only; never globally intern feed data.
+        var text = new Dictionary<string, string>(StringComparer.Ordinal);
+        string Share(string value)
+        {
+            if (text.TryGetValue(value, out var existing)) return existing;
+            text.Add(value, value); return value;
+        }
+        var rules = new HashIndicator[payload.Hashes.Count];
+        for (var i = 0; i < rules.Length; i++)
+        {
+            var rule = payload.Hashes[i]; var label = Share(rule.Label); var source = Share(rule.Source);
+            rules[i] = ReferenceEquals(label, rule.Label) && ReferenceEquals(source, rule.Source) ? rule : rule with { Label = label, Source = source };
+        }
+        Payload = payload with { Hashes = rules };
+        Hashes = rules.ToDictionary(x => x.Sha256, StringComparer.OrdinalIgnoreCase);
     }
     public bool IsExpired(DateTimeOffset now) => Payload.ExpiresAt <= now;
 }

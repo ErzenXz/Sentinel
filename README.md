@@ -2,9 +2,20 @@
 
 MIT-licensed native Windows security application, with an independent local scanner, self-hostable intelligence server, Windows protection controls, and optional AI explanations.
 
-**v0.6.1 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
+**v0.7.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
 
-## New in v0.6.1
+## New in v0.7.0
+
+- **Pause and resume local scans:** controls stay in the status bar while page controls are disabled. Cancellation works while paused and saves completed findings. Pausing is cooperative; an in-flight read can finish before the next checkpoint.
+- **Balanced or Low impact:** choose the speed for this session in File scanner. Low impact yields briefly after 4 MiB read or 32 inspected contents, including ZIP contents, using the same rules and budgets. The CLI accepts `scan <path> --low-impact`; monitoring and scheduling keep their existing defaults.
+- **Less scan bookkeeping:** streaming traversal retains at most 64 active directory levels, with bounded findings. Native enumeration metadata avoids a repeated Windows attribute lookup; every file and its parents are still rechecked before reading. Ordinary prefixes share the read buffer; scripts keep their full 32 KiB review prefix.
+- **Smaller catalog and report allocations:** repeated public labels/sources share text within each catalog. Reports and CLI scan JSON stream without a whole-output byte/string copy; the 16 MiB report bound, validation, atomic export and historical-report compatibility remain.
+- **Measured core improvements:** on a synthetic Mac ARM64 comparison, report round-trip allocation fell 49.8%, catalog-load retained managed memory 14.3%, and wide-folder allocation 7.9%. Timing varied across runs; these are not Windows working-set measurements. [Method, raw results and tradeoffs](docs/PERFORMANCE.md).
+- Tagged previews now publish checked Windows x64/ARM64 packages, source, server and checksums through GitHub Actions after both Windows jobs pass.
+
+[Download v0.7.0](https://github.com/ErzenXz/Sentinel/releases/tag/v0.7.0) · [Release notes](docs/RELEASE-0.7.0.md)
+
+## Included from v0.6.1
 
 - **A complete native redesign:** charcoal navigation, warm light surfaces, restrained green actions, compact status rows and cleaner results. Settings stays pinned; the minimum window remains 960 × 680.
 - **Home starts with scanning:** scan a file or folder, review compact Windows protection rows, and open your latest saved scan. Windows readings have timestamps; unknown settings and stale threat lists stay explicit.
@@ -48,7 +59,7 @@ Existing capabilities include Defender quick/full/custom scans and intelligence 
 
 ## Run on Windows
 
-Extract **all files** from the appropriate v0.6.1 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
+Extract **all files** from the appropriate v0.7.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
 
 Open **File scanner** to scan a file/folder immediately using the bundled public indicator snapshot. Open **Quarantine** to review backups. Use a standard Windows user session for independent file remediation and AI. Windows Firewall/Defender operations can require Settings → About Sentinel & administrator tools → Restart as administrator. AI and personal-file quarantine/restore are disabled in elevated sessions.
 
@@ -85,6 +96,6 @@ No Electron, embedded browser, telemetry, or bundled LLM. The own scanner uses o
 
 A hash list detects exact published files and misses changed/new malware. We do not yet have kernel-enforced execution blocking, broad archive-format coverage, ransomware behavioral blocking, a protected service, or AV certification. These require sustained engineering and independent evaluation.
 
-Read [v0.6.1 release notes](docs/RELEASE-0.6.1.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
+Read [v0.7.0 release notes](docs/RELEASE-0.7.0.md), [performance measurements](docs/PERFORMANCE.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
 
 Sentinel code is MIT licensed. Embedded ESET indicator data remains BSD two-clause licensed; ESET does not endorse Sentinel. No OpenClaw source code or third-party malware binaries are bundled.

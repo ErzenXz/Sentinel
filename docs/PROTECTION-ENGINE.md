@@ -10,7 +10,7 @@ The v0.3 engine directly reads local files, calculates SHA-256 using a bounded s
 - **NoKnownMatch:** no current rule matched. It is not a clean/safe verdict.
 - **Skipped/Error:** the file was not fully inspected. Limits and read errors are counted, not silently treated as safe.
 
-Default bounds are 256 MiB per file, 50,000 filesystem entries, depth 64, and 2,000 retained findings. Exact detections take priority over lower-priority findings when the result list is full. Truncation is explicit. Files are scanned sequentially using pooled buffers returned with clearing; there is no permanent process-per-file overhead or unsafe timestamp-only scan cache. ZIP containers and their contained files are hashed separately; unsupported archive formats receive an incomplete-content finding. Symbolic links, junctions/reparse points, UNC/device namespaces, and alternate data streams are excluded.
+Default bounds are 256 MiB per file, 50,000 filesystem entries, depth 64, and 2,000 retained findings. Exact detections take priority over lower-priority findings when the result list is full. Truncation is explicit. Folder traversal streams one native enumerator per active directory level, at most 64; a wide folder does not queue all child paths. Enumeration attributes are used only for traversal; file/parent reparse checks still run freshly before content reads. Files are scanned sequentially using pooled buffers returned with clearing; there is no permanent process-per-file overhead or unsafe timestamp-only scan cache. ZIP containers and their contained files are hashed separately; unsupported archive formats receive an incomplete-content finding. Symbolic links, junctions/reparse points, UNC/device namespaces, and alternate data streams are excluded.
 
 ## ZIP contents and budgets
 
@@ -51,3 +51,9 @@ Manual and scheduled scans retain the latest 30 reports under `%LocalAppData%/Se
 The native UI can query this user’s task with [Get-ScheduledTaskInfo](https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/get-scheduledtaskinfo). Scanner exit codes are 0 no known match, 1 command failure, 2 exact detections (possibly with incomplete coverage), 3 incomplete/canceled without detections, and 4 review findings. Windows Task Scheduler has additional result codes.
 
 Kernel-enforced on-access blocking, protected services, broad archive-format coverage, behavioral ransomware prevention, tamper resistance, and independent detection certification remain separate future work. Keep Defender's real-time protection enabled during the preview.
+
+## v0.7 resource controls
+
+Manual local scans can pause/resume at cooperative checkpoints; cancellation while paused wakes the scan and saves completed findings. An in-flight read may finish before a pause takes effect, and paused scans retain their current buffers/handles. Low impact adds 20 ms yields after 4 MiB read or 32 inspected contents, including archives, without changing rules/budgets. The CLI accepts `--low-impact`; monitor/scheduler defaults remain. Reports add optional `Mode` and `PeakPendingDirectories`; older reports default to Balanced/0. The peak is diagnostic, not a coverage guarantee.
+
+Reports use capped streaming I/O; overflow or cancellation before commit preserves the destination and removes staging. Repeated public label/source strings are shared only within their catalog. See [performance method and limitations](PERFORMANCE.md).

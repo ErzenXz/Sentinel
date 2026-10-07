@@ -31,6 +31,7 @@ internal sealed class ArchiveScanner(FileScanner scanner, ScanLimits limits)
             for (var i = 0; i < zip.Entries.Count; i++)
             {
                 token.ThrowIfCancellationRequested();
+                await scanner.CheckpointAsync(token);
                 if (++visited > limits.MaxArchiveEntries) { Notice(prefix, FileVerdict.Skipped, "Archive-tree entry budget reached; remaining contents were not scanned."); break; }
                 var entry = zip.Entries[i]; var header = headers[i];
                 var name = prefix + entry.FullName;
@@ -67,7 +68,7 @@ internal sealed class ArchiveScanner(FileScanner scanner, ScanLimits limits)
                             else if (result.ZipBytes is null) Notice(name, FileVerdict.Skipped, "Nested archive exceeds the in-memory archive budget; only its hash was checked.");
                             else await ReadZip(result.ZipBytes, name + " → ", depth + 1, token);
                         }
-                        else if (FileScanner.IsUnsupportedArchive(entry.FullName, result.Head))
+                        else if (result.UnsupportedArchive)
                             Notice(name, FileVerdict.Skipped, "Nested archive format is unsupported; only its hash was checked.");
                     }
                 }
@@ -102,6 +103,7 @@ internal sealed class ArchiveScanner(FileScanner scanner, ScanLimits limits)
         for (var i = 0; i < count; i++)
         {
             token.ThrowIfCancellationRequested();
+            await scanner.CheckpointAsync(token);
             if (stream.Position + fixedHeader.Length > endPosition) throw new InvalidDataException("Truncated ZIP central directory.");
             await stream.ReadExactlyAsync(fixedHeader, token);
             if (U32(fixedHeader, 0) != 0x02014b50 || U16(fixedHeader, 34) != 0) throw new InvalidDataException("Invalid ZIP directory entry.");

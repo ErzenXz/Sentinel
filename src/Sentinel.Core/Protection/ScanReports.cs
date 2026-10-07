@@ -10,7 +10,7 @@ public static class ScanReports
     public const int MaxReportBytes = 16 * 1024 * 1024;
     public static JsonSerializerOptions Json { get; } = new(FeedVerifier.Json)
     {
-        WriteIndented = true, MaxDepth = 16,
+        WriteIndented = true, MaxDepth = 16, DefaultBufferSize = 64 * 1024,
         Converters = { new JsonStringEnumConverter(allowIntegerValues: false) }
     };
     public static ScanReport Load(string path)
@@ -18,14 +18,15 @@ public static class ScanReports
         path = FileSafety.NormalizeRegularPath(path);
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         if (stream.Length > MaxReportBytes) throw new InvalidDataException("Scan report exceeds the size limit.");
-        var bytes = new byte[(int)stream.Length]; stream.ReadExactly(bytes);
-        var report = JsonSerializer.Deserialize<ScanReport>(bytes, Json) ?? throw new InvalidDataException("Invalid scan report.");
+        using var bounded = new ReportStream(stream);
+        var report = JsonSerializer.Deserialize<ScanReport>(bounded, Json) ?? throw new InvalidDataException("Invalid scan report.");
         Validate(report); return report;
     }
     public static void Validate(ScanReport report)
     {
         if (report.Findings is null || report.Findings.Count > 2_000 || report.Duration < TimeSpan.Zero || report.Duration > TimeSpan.FromDays(7)
             || report.StartedAt == default || report.FeedSequence < 0 || report.BytesRead < 0 || report.ArchiveBytesRead < 0
+            || !Enum.IsDefined(report.Mode) || report.PeakPendingDirectories is < 0 or > 64
             || new[] { report.Scanned, report.Detected, report.Review, report.Skipped, report.Errors, report.ArchiveEntries }.Any(x => x < 0))
             throw new InvalidDataException("Invalid scan report totals or limits.");
         foreach (var finding in report.Findings)
@@ -51,13 +52,15 @@ public static class ScanReports
         var parent = Path.GetDirectoryName(path) ?? throw new ArgumentException("Choose a report folder.");
         Prepare(parent);
         if (File.Exists(path) || Directory.Exists(path)) _ = FileSafety.NormalizeRegularPath(path);
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(report, Json);
-        if (bytes.Length > MaxReportBytes) throw new InvalidDataException("Scan report exceeds the size limit.");
         var staged = Path.Combine(parent, ".sentinel-report-" + Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
             await using (var stream = new FileStream(staged, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous))
-            { await stream.WriteAsync(bytes, token); await stream.FlushAsync(token); stream.Flush(flushToDisk: true); }
+            {
+                using var bounded = new ReportStream(stream);
+                await JsonSerializer.SerializeAsync(bounded, report, Json, token);
+                await stream.FlushAsync(token); stream.Flush(flushToDisk: true);
+            }
             token.ThrowIfCancellationRequested(); File.Move(staged, path, overwrite: true);
         }
         finally { if (File.Exists(staged)) File.Delete(staged); }
@@ -102,5 +105,37 @@ public static class ScanReports
         while (!Directory.Exists(existing) && !File.Exists(existing)) existing = Path.GetDirectoryName(existing) ?? throw new IOException("Report folder has no local parent.");
         _ = FileSafety.NormalizeRegularPath(existing);
         Directory.CreateDirectory(directory); _ = FileSafety.NormalizeRegularPath(directory);
+    }
+
+    // The wrapper leaves the file open for its owner and checks every read/write, even
+    // if an untrusted file grows after the initial length check. No full JSON byte copy.
+    private sealed class ReportStream(Stream inner) : Stream
+    {
+        private long processed;
+        private void Check(int count)
+        {
+            if (count > MaxReportBytes - processed) throw new InvalidDataException("Scan report exceeds the size limit.");
+        }
+        public override int Read(Span<byte> buffer)
+        {
+            var count = inner.Read(buffer[..(int)Math.Min(buffer.Length, MaxReportBytes - processed + 1)]);
+            Check(count); processed += count; return count;
+        }
+        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+        public override void Write(ReadOnlySpan<byte> buffer)
+        { Check(buffer.Length); inner.Write(buffer); processed += buffer.Length; }
+        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        { Check(buffer.Length); await inner.WriteAsync(buffer, cancellationToken); processed += buffer.Length; }
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+        public override void Flush() => inner.Flush();
+        public override Task FlushAsync(CancellationToken cancellationToken) => inner.FlushAsync(cancellationToken);
+        public override bool CanRead => inner.CanRead;
+        public override bool CanWrite => inner.CanWrite;
+        public override bool CanSeek => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
     }
 }

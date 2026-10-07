@@ -28,3 +28,25 @@ jobs:
           name: Sentinel-${{ matrix.runtime }}
           path: artifacts/Sentinel-*-${{ matrix.runtime }}.zip
           if-no-files-found: error
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Sentinel-*
+          path: artifacts
+          merge-multiple: true
+      - name: Verify and package release
+        run: python3 scripts/package-release.py "${GITHUB_REF_NAME#v}" --from-archives
+      - name: Publish development preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" artifacts/Sentinel-"$release_version"-*.zip "artifacts/SHA256SUMS-v$release_version.txt" \
+            --verify-tag --prerelease --title "Sentinel $GITHUB_REF_NAME" --notes-file "docs/RELEASE-$release_version.md"

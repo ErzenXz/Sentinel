@@ -35,6 +35,7 @@ public partial class MainWindow : Window
         InitializeAnnouncements();
         PreviewKeyDown += KeyboardNavigation;
         StopOperation.Click += (_, _) => operation?.Cancel();
+        PauseScan.Click += (_, _) => ToggleScanPause();
         Privilege.Text = IsAdmin ? "Administrator session · AI unavailable" : "Standard user session";
         if (IsAdmin) { PrivilegeChip.Tag = "Warning"; PrivilegeGlyph.Text = ""; }
         try { ai = LocalStore.LoadSettings(); key = LocalStore.LoadKey(); }

@@ -60,11 +60,13 @@ try {
  const archiveScan=await run(['scan',archive,'--feed',join(state,'feed.json'),'--key',key,'--report',reportPath]);
  assert.equal(archiveScan.code,2,archiveScan.error);const archiveReport=JSON.parse(readFileSync(reportPath));
  assert.equal(archiveReport.archiveEntries,1);assert.equal(archiveReport.findings[0].archiveEntry,'inside/fixture.txt');assert.equal(archiveReport.findings[0].path,archive);
+ assert.deepEqual(JSON.parse(archiveScan.out),archiveReport);
  console.log('PASS: ZIP-contained feed detection and atomic report export through the actual CLI');
  const offlineProfile=join(temporary,'offline-profile');const ordinary=join(temporary,'ordinary.txt');writeFileSync(ordinary,'ordinary offline profile fixture');
- const offline=await run(['scan',ordinary,'--profile',offlineProfile]);assert.equal(offline.code,0,offline.error);
+ const offline=await run(['scan',ordinary,'--profile',offlineProfile,'--low-impact']);assert.equal(offline.code,0,offline.error);
+ assert.equal(JSON.parse(offline.out).mode,'LowImpact');assert.equal(JSON.parse(offline.out).peakPendingDirectories,0);
  assert.equal(readdirSync(join(offlineProfile,'reports')).filter(x=>x.endsWith('.json')).length,1);
- console.log('PASS: profile without a server uses bundled intelligence and saves report history');
+ console.log('PASS: low-impact offline profile uses bundled intelligence, streams JSON and saves report history');
  const envelope=JSON.parse(readFileSync(join(state,'feed.json')));const bytes=Buffer.from(envelope.payload,'base64');bytes[10]^=1;envelope.payload=bytes.toString('base64');writeFileSync(join(temporary,'tampered.json'),JSON.stringify(envelope));
  const bad=await run(['scan',file,'--feed',join(temporary,'tampered.json'),'--key',key]);assert.equal(bad.code,1);assert.match(bad.error,/signature is invalid/);
  console.log('PASS: altered server feed is rejected before scanning');

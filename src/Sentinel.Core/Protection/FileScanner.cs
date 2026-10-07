@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Buffers;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.IO.Enumeration;
 
 namespace Sentinel.Core.Protection;
 
@@ -16,7 +17,7 @@ public sealed record FileScanResult(FileFinding File, IReadOnlyList<FileFinding>
 public sealed record ScanProgress(int Scanned, int Detected, int Review, int Skipped, int Errors, string CurrentFile);
 public sealed record ScanReport(DateTimeOffset StartedAt, TimeSpan Duration, int Scanned, int Detected, int Review, int Skipped, int Errors,
     bool LimitReached, bool FindingsTruncated, long BytesRead, long? FeedSequence, bool FeedStale, IReadOnlyList<FileFinding> Findings,
-    bool Canceled = false, int ArchiveEntries = 0, long ArchiveBytesRead = 0)
+    bool Canceled = false, int ArchiveEntries = 0, long ArchiveBytesRead = 0, ScanMode Mode = ScanMode.Balanced, int PeakPendingDirectories = 0)
 {
     [JsonIgnore] public bool Incomplete => Canceled || LimitReached || FindingsTruncated || Skipped > 0 || Errors > 0;
 }
@@ -31,7 +32,7 @@ public static class FileSafety
         if (!System.IO.Path.IsPathFullyQualified(path)) throw new ArgumentException("Choose an absolute local path.");
         var full = System.IO.Path.GetFullPath(path);
         // Avoid UNC/device namespaces and ADS paths. The scanner is limited to local regular files.
-        if (OperatingSystem.IsWindows() && (full.StartsWith(@"\\", StringComparison.Ordinal) || full[2..].Contains(':'))) throw new IOException("Network, device, and alternate stream paths are not supported.");
+        if (OperatingSystem.IsWindows() && (full.StartsWith(@"\\", StringComparison.Ordinal) || full.AsSpan(2).Contains(':'))) throw new IOException("Network, device, and alternate stream paths are not supported.");
         return full;
     }
     public static void EnsureDirectory(string directory)
@@ -43,16 +44,17 @@ public static class FileSafety
     public static string NormalizeRegularPath(string path)
     {
         var full = NormalizeLocalPath(path);
+        var root = System.IO.Path.GetPathRoot(full);
         for (var current = full; !string.IsNullOrEmpty(current); current = System.IO.Path.GetDirectoryName(current))
         {
             if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw new IOException("Symbolic links and reparse points are not scanned or modified.");
-            if (current == System.IO.Path.GetPathRoot(current)) break;
+            if (current == root) break;
         }
         return full;
     }
 }
 
-public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = null)
+public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = null, ScanControl? control = null)
 {
     private readonly ScanLimits limits = ValidateLimits(limits ?? new());
     private static ScanLimits ValidateLimits(ScanLimits value)
@@ -97,7 +99,7 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
         try
         {
             var full = FileSafety.NormalizeRegularPath(path);
-            await using var stream = new FileStream(full, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await using var stream = new FileStream(full, FileMode.Open, FileAccess.Read, FileShare.Read, IsZipName(full) ? 64 * 1024 : 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
             var size = stream.Length;
             if (size > limits.MaxFileBytes) return new(new(full, FileVerdict.Skipped, "File exceeds the configured scan size limit."), [], 0, 0);
             var content = await InspectStreamAsync(stream, full, size, limits.MaxFileBytes, token);
@@ -114,7 +116,7 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
                     catch (OperationCanceledException) when (token.IsCancellationRequested) { canceled = true; }
                     return new(content.Finding, archive.Findings, archive.ScannedEntries, archive.BytesRead, canceled);
                 }
-                if (IsUnsupportedArchive(full, content.Head))
+                if (content.UnsupportedArchive)
                     return new(content.Finding, [new(full, FileVerdict.Skipped, "Archive contents use an unsupported format; only the container hash was checked.", content.Finding.Sha256, size)], 0, 0);
                 return new(content.Finding, [], 0, 0);
             }
@@ -123,55 +125,91 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
         { return new(new(path, FileVerdict.Error, ex.Message), [], 0, 0); }
     }
-    internal sealed record ContentScan(FileFinding Finding, bool IsZip, MemoryStream? ZipBytes, byte[] Head);
+    internal sealed record ContentScan(FileFinding Finding, bool IsZip, MemoryStream? ZipBytes, bool UnsupportedArchive);
+    internal ValueTask CheckpointAsync(CancellationToken token) => control?.CheckpointAsync(token) ?? ValueTask.CompletedTask;
     internal async Task<ContentScan> InspectStreamAsync(Stream stream, string name, long size, long ceiling, CancellationToken token, bool captureZip = false, Action<int>? consumed = null)
     {
-        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024); var headCapacity = (int)Math.Min(32 * 1024, size); var head = ArrayPool<byte>.Shared.Rent(Math.Max(1, headCapacity));
+        // Only scripts need a 32 KiB review prefix. Other files need at most 128 bytes
+        // for the standard test marker and archive signatures; all bytes are still hashed.
+        var script = IsScript(name);
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024); var headCapacity = (int)Math.Min(script ? 32 * 1024 : 128, size);
+        var scriptHead = script ? ArrayPool<byte>.Shared.Rent(Math.Max(1, headCapacity)) : null;
+        // Non-script prefixes share the end of the read buffer, outside subsequent reads.
+        var head = (scriptHead ?? buffer).AsMemory(script ? 0 : buffer.Length - headCapacity, headCapacity);
+        var readCapacity = script ? buffer.Length : buffer.Length - headCapacity;
         var headCount = 0; long total = 0; MemoryStream? nested = null; var isZip = IsZipName(name);
         try
         {
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            int read;
-            while ((read = await stream.ReadAsync(buffer.AsMemory(0, (int)Math.Min(buffer.Length, Math.Max(1, ceiling - total + 1))), token)) > 0)
+            while (true)
             {
+                await CheckpointAsync(token);
+                var read = await stream.ReadAsync(buffer.AsMemory(0, (int)Math.Min(readCapacity, Math.Max(1, ceiling - total + 1))), token);
+                if (read == 0) break;
                 consumed?.Invoke(read); total += read;
-                if (total > ceiling) { nested?.Dispose(); return new(new(name, FileVerdict.Skipped, "Content exceeds its scan/expansion limit.", Bytes: total), false, null, []); }
+                if (total > ceiling) { nested?.Dispose(); return new(new(name, FileVerdict.Skipped, "Content exceeds its scan/expansion limit.", Bytes: total), false, null, false); }
                 hash.AppendData(buffer, 0, read);
                 var copy = Math.Min(read, headCapacity - headCount);
-                if (copy > 0) { buffer.AsSpan(0, copy).CopyTo(head.AsSpan(headCount)); headCount += copy; }
-                isZip |= IsZipMagic(head.AsSpan(0, headCount));
+                if (copy > 0) { buffer.AsSpan(0, copy).CopyTo(head.Span[headCount..]); headCount += copy; }
+                isZip |= IsZipMagic(head.Span[..headCount]);
                 if (captureZip && isZip && size <= limits.MaxNestedArchiveBytes)
                 {
                     if (nested is null)
                     {
                         nested = new MemoryStream((int)size);
-                        if (total > read) nested.Write(head.AsSpan(0, (int)(total - read)));
+                        if (total > read) nested.Write(head.Span[..(int)(total - read)]);
                     }
                     await nested.WriteAsync(buffer.AsMemory(0, read), token);
                 }
+                if (control is not null) await control.ReadCompletedAsync(read, token);
             }
-            if (total != size) { nested?.Dispose(); return new(new(name, FileVerdict.Error, "Content size changed or does not match its declared size. Rescan it.", Bytes: total), false, null, []); }
+            if (total != size) { nested?.Dispose(); return new(new(name, FileVerdict.Error, "Content size changed or does not match its declared size. Rescan it.", Bytes: total), false, null, false); }
             var digest = Convert.ToHexString(hash.GetHashAndReset());
-            var reason = ReviewSignals(name, head.AsSpan(0, headCount));
-            var finding = IsStandardTestFile(head.AsSpan(0, headCount), total) ? new FileFinding(name, FileVerdict.TestFile, "Standard harmless antivirus test file.", digest, total)
+            var reason = ReviewSignals(name, head.Span[..headCount], script);
+            var finding = IsStandardTestFile(head.Span[..headCount], total) ? new FileFinding(name, FileVerdict.TestFile, "Standard harmless antivirus test file.", digest, total)
                 : catalog.Hashes.TryGetValue(digest, out var indicator) ? new(name, FileVerdict.KnownThreat, $"SHA-256 match: {indicator.Label} · {indicator.Source}", digest, total)
                 : new(name, reason is null ? FileVerdict.NoKnownMatch : FileVerdict.NeedsReview, reason ?? "No known hash match. This does not establish that the file is safe.", digest, total);
             if (nested is not null) nested.Position = 0;
-            return new(finding, isZip, nested, head.AsSpan(0, Math.Min(8, headCount)).ToArray());
+            if (control is not null) await control.FileCompletedAsync(token);
+            return new(finding, isZip, nested, IsUnsupportedArchive(name, head.Span[..Math.Min(8, headCount)]));
         }
         catch { nested?.Dispose(); throw; }
-        finally { ArrayPool<byte>.Shared.Return(buffer, clearArray: true); ArrayPool<byte>.Shared.Return(head, clearArray: true); }
+        finally { ArrayPool<byte>.Shared.Return(buffer, clearArray: true); if (scriptHead is not null) ArrayPool<byte>.Shared.Return(scriptHead, clearArray: true); }
     }
     internal static bool IsZipMagic(ReadOnlySpan<byte> bytes) => bytes.Length >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4b && (bytes[2] == 3 && bytes[3] == 4 || bytes[2] == 5 && bytes[3] == 6);
-    private static bool IsZipName(string name) => Path.GetExtension(name).ToLowerInvariant() is ".zip" or ".jar" or ".apk" or ".nupkg" or ".docx" or ".xlsx" or ".pptx" or ".odt" or ".ods" or ".epub";
-    internal static bool IsUnsupportedArchive(string name, ReadOnlySpan<byte> head) => Path.GetExtension(name).ToLowerInvariant() is ".7z" or ".rar" or ".tar" or ".gz" or ".bz2" or ".xz" or ".cab" or ".iso"
-        || head.StartsWith(new byte[] { 0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c }) || head.StartsWith("Rar!"u8) || head.StartsWith(new byte[] { 0x1f, 0x8b });
-    private static string? ReviewSignals(string path, ReadOnlySpan<byte> head)
+    private static bool IsZipName(string name)
     {
-        var name = System.IO.Path.GetFileName(path).ToLowerInvariant();
-        if (new[] { ".pdf.exe", ".doc.exe", ".docx.exe", ".jpg.exe", ".png.exe", ".txt.exe" }.Any(name.EndsWith)) return "Executable with a document/image-style double extension. Review manually; this is not a malware verdict.";
-        var extension = System.IO.Path.GetExtension(path).ToLowerInvariant();
-        if (extension is ".ps1" or ".bat" or ".cmd" or ".vbs" or ".js")
+        var extension = Path.GetExtension(name.AsSpan());
+        return extension.Equals(".zip", StringComparison.OrdinalIgnoreCase) || extension.Equals(".jar", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".apk", StringComparison.OrdinalIgnoreCase) || extension.Equals(".nupkg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".docx", StringComparison.OrdinalIgnoreCase) || extension.Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".pptx", StringComparison.OrdinalIgnoreCase) || extension.Equals(".odt", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".ods", StringComparison.OrdinalIgnoreCase) || extension.Equals(".epub", StringComparison.OrdinalIgnoreCase);
+    }
+    private static ReadOnlySpan<byte> SevenZipMagic => [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c];
+    internal static bool IsUnsupportedArchive(string name, ReadOnlySpan<byte> head)
+    {
+        var extension = Path.GetExtension(name.AsSpan());
+        return extension.Equals(".7z", StringComparison.OrdinalIgnoreCase) || extension.Equals(".rar", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".tar", StringComparison.OrdinalIgnoreCase) || extension.Equals(".gz", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".bz2", StringComparison.OrdinalIgnoreCase) || extension.Equals(".xz", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".cab", StringComparison.OrdinalIgnoreCase) || extension.Equals(".iso", StringComparison.OrdinalIgnoreCase)
+            || head.StartsWith(SevenZipMagic) || head.StartsWith("Rar!"u8) || head.Length >= 2 && head[0] == 0x1f && head[1] == 0x8b;
+    }
+    private static bool IsScript(string path)
+    {
+        var extension = Path.GetExtension(path.AsSpan());
+        return extension.Equals(".ps1", StringComparison.OrdinalIgnoreCase) || extension.Equals(".bat", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase) || extension.Equals(".vbs", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".js", StringComparison.OrdinalIgnoreCase);
+    }
+    private static string? ReviewSignals(string path, ReadOnlySpan<byte> head, bool script)
+    {
+        var name = Path.GetFileName(path.AsSpan());
+        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+            (name.EndsWith(".pdf.exe", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".doc.exe", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".docx.exe", StringComparison.OrdinalIgnoreCase)
+            || name.EndsWith(".jpg.exe", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".png.exe", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".txt.exe", StringComparison.OrdinalIgnoreCase))) return "Executable with a document/image-style double extension. Review manually; this is not a malware verdict.";
+        if (script)
         {
             var text = Encoding.UTF8.GetString(head);
             if (text.Contains("FromBase64String", StringComparison.OrdinalIgnoreCase) && (text.Contains("Invoke-Expression", StringComparison.OrdinalIgnoreCase) || text.Contains("DownloadString", StringComparison.OrdinalIgnoreCase))) return "Script combines encoded content with execution or download primitives. Review manually; legitimate scripts can contain these patterns.";
@@ -184,7 +222,10 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
         var findings = new List<FileFinding>(); var scanned = 0; var detected = 0; var review = 0; var skipped = 0; var errors = 0; long bytes = 0; var limit = false; var attempted = 0;
         token.ThrowIfCancellationRequested();
         var root = FileSafety.NormalizeRegularPath(path);
-        var pending = new Stack<(string Path, int Depth)>(); pending.Push((root, 0));
+        // Streaming depth-first traversal keeps one enumerator per directory level,
+        // rather than retaining every child path in a wide folder.
+        var pending = new Stack<(IEnumerator<(string Path, FileAttributes Attributes)> Children, string Parent, int Depth)>();
+        (string Path, int Depth, FileAttributes? Attributes)? next = (root, 0, null); var peakPending = 0;
         var lastProgress = TimeSpan.Zero;
         var findingCount = 0; var archiveEntries = 0; long archiveBytes = 0; var canceled = false;
         void Add(FileFinding finding)
@@ -199,23 +240,34 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
         }
         try
         {
-        while (pending.TryPop(out var entry))
+        while (true)
         {
             token.ThrowIfCancellationRequested();
+            await CheckpointAsync(token);
+            while (next is null && pending.TryPeek(out var folder))
+            {
+                try { if (folder.Children.MoveNext()) { var child = folder.Children.Current; next = (child.Path, folder.Depth, child.Attributes); break; } }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+                { errors++; Add(new(folder.Parent, FileVerdict.Error, ex.Message)); }
+                pending.Pop().Children.Dispose();
+            }
+            if (next is null) break;
+            var entry = next.Value; next = null;
             if (++attempted > limits.MaxFiles) { limit = true; break; }
             try
             {
-                var attributes = File.GetAttributes(entry.Path);
+                // Windows supplies these attributes with native directory enumeration.
+                // FileSafety still freshly revalidates the leaf and every parent before reads.
+                var attributes = entry.Attributes ?? File.GetAttributes(entry.Path);
                 if ((attributes & FileAttributes.ReparsePoint) != 0) { skipped++; Add(new(entry.Path, FileVerdict.Skipped, "Reparse point skipped.")); continue; }
                 if ((attributes & FileAttributes.Directory) != 0)
                 {
                     if (entry.Depth >= 64) { skipped++; Add(new(entry.Path, FileVerdict.Skipped, "Directory depth limit reached.")); continue; }
-                    foreach (var child in Directory.EnumerateFileSystemEntries(entry.Path))
-                    {
-                        token.ThrowIfCancellationRequested();
-                        if (pending.Count + attempted >= limits.MaxFiles) { limit = true; break; }
-                        pending.Push((child, entry.Depth + 1));
-                    }
+                    var children = new FileSystemEnumerable<(string Path, FileAttributes Attributes)>(entry.Path,
+                        static (ref FileSystemEntry child) => (child.ToFullPath(), child.Attributes),
+                        new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false });
+                    pending.Push((children.GetEnumerator(), entry.Path, entry.Depth + 1));
+                    peakPending = Math.Max(peakPending, pending.Count);
                     continue;
                 }
                 var result = await ScanFileDetailedAsync(entry.Path, token);
@@ -239,8 +291,9 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
         }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { canceled = true; }
+        finally { while (pending.TryPop(out var folder)) folder.Children.Dispose(); }
         canceled |= token.IsCancellationRequested;
         progress?.Report(new(scanned, detected, review, skipped, errors, canceled ? "Canceled" : "Finished"));
-        return new(started, clock.Elapsed, scanned, detected, review, skipped, errors, limit, findingCount > limits.MaxFindings, bytes, catalog.Payload.Sequence, catalog.IsExpired(DateTimeOffset.UtcNow), findings, canceled, archiveEntries, archiveBytes);
+        return new(started, clock.Elapsed, scanned, detected, review, skipped, errors, limit, findingCount > limits.MaxFindings, bytes, catalog.Payload.Sequence, catalog.IsExpired(DateTimeOffset.UtcNow), findings, canceled, archiveEntries, archiveBytes, control?.Mode ?? ScanMode.Balanced, peakPending);
     }
 }

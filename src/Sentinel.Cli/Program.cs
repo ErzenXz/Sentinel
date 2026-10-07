@@ -9,9 +9,10 @@ try
     if (args.Length == 0 || args[0] is "help" or "--help")
     {
         Console.WriteLine("""
-            Sentinel independent scanner 0.6
+            Sentinel independent scanner 0.7
             scan <absolute path> --feed <signed feed.json> --key <public.pem> [--report <report.json>]
             scan <absolute path> --profile <Sentinel local-data folder> [--report <report.json>]
+            Add --low-impact to either scan command for brief cooperative yields between chunks/files.
             update --server <base URL> --key <public.pem> --state <local feed-cache folder>
             inspect-feed <feed.json> --key <public.pem>
             demo-test <new file path>
@@ -97,11 +98,15 @@ try
     if (args[0] == "inspect-feed") { if (catalog is null) throw new InvalidDataException("No verified feed.");Console.WriteLine(JsonSerializer.Serialize(new { catalog.Payload.Sequence, hashes=catalog.Hashes.Count, expired=catalog.IsExpired(DateTimeOffset.UtcNow) },FeedVerifier.Json));return 0; }
     if (args[0] != "scan") throw new ArgumentException("Unknown command; use --help.");
     using var stop=new CancellationTokenSource();Console.CancelKeyPress+=(_,e)=>{e.Cancel=true;stop.Cancel();};
-    var report=await new FileScanner(catalog).ScanPathAsync(Path.GetFullPath(args[1]),token:stop.Token);
-    var json=JsonSerializer.Serialize(report,ScanReports.Json);
+    var control = new ScanControl(args.Contains("--low-impact", StringComparer.Ordinal) ? ScanMode.LowImpact : ScanMode.Balanced);
+    var report=await new FileScanner(catalog, control:control).ScanPathAsync(Path.GetFullPath(args[1]),token:stop.Token);
     if (Option("--report") is { } reportPath) await ScanReports.SaveAsync(report,reportPath);
     if (Option("--profile") is { } historyProfile) await ScanReports.SaveHistoryAsync(report,Path.Combine(Path.GetFullPath(historyProfile),"reports"));
-    Console.WriteLine(json);
+    await using (var output = Console.OpenStandardOutput())
+    {
+        await JsonSerializer.SerializeAsync(output,report,ScanReports.Json);
+        await output.WriteAsync("\n"u8.ToArray());
+    }
     return report.Detected>0 ? 2 : report.Incomplete ? 3 : report.Review>0 ? 4 : 0;
 }
 catch (OperationCanceledException) { Console.Error.WriteLine("Scan canceled; no files were modified."); return 3; }
