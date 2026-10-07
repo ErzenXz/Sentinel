@@ -68,7 +68,8 @@ public static class FeedVerifier
         var signature = signed.Signature ?? throw new InvalidDataException("Missing feed signature encoding.");
         _ = Fingerprint(pinnedPem);
         using var rsa = RSA.Create(); rsa.ImportFromPem(pinnedPem);
-        if (rsa.KeySize < 3072 || !rsa.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1)) throw new CryptographicException("Threat feed signature is invalid. The previous feed was retained.");
+        var payloadDigest = SHA256.HashData(data);
+        if (rsa.KeySize < 3072 || !rsa.VerifyHash(payloadDigest, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1)) throw new CryptographicException("Threat feed signature is invalid. The previous feed was retained.");
         var payload = JsonSerializer.Deserialize<FeedPayload>(data, Json) ?? throw new InvalidDataException("Missing feed payload.");
         if (payload.Schema != 1 || payload.Sequence < 1 || payload.Sequence < minimumSequence) throw new InvalidDataException("Old or unsupported feed rejected.");
         if (payload.IssuedAt > now.AddMinutes(5) || payload.ExpiresAt <= payload.IssuedAt || payload.ExpiresAt - payload.IssuedAt > TimeSpan.FromDays(8)) throw new InvalidDataException("Invalid feed validity period.");
@@ -79,7 +80,7 @@ public static class FeedVerifier
         {
             if (rule is null || !IsHash(rule.Sha256) || !SafeLabel(rule.Label) || !SafeLabel(rule.Source) || !hashes.TryAdd(rule.Sha256, rule)) throw new InvalidDataException("Malformed or duplicate threat indicator.");
         }
-        return new(payload, hashes, SHA256.HashData(data));
+        return new(payload, hashes, payloadDigest);
     }
     public static bool IsHash(string? hash) => hash is { Length: 64 } && hash.All(Uri.IsHexDigit);
     private static bool SafeLabel(string? text) => text is { Length: > 0 and <= 160 } && !text.Any(char.IsControl);
