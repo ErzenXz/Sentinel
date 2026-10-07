@@ -21,7 +21,7 @@ internal static partial class Program
         await SampleResources(window, "visible-after-showing");
     }
 
-    private static async Task SampleResources(MainWindow window, string phase)
+    private static async Task<object> SampleResources(MainWindow window, string phase, int sampleMilliseconds = 5000)
     {
         await Task.Delay(2000); await Drain();
         using var process = Process.GetCurrentProcess();
@@ -31,25 +31,26 @@ internal static partial class Program
         var dispatches = new long[16];
         DispatcherHookEventHandler dispatch = (_, e) => { var p = (int)e.Operation.Priority; if (p >= 0 && p < dispatches.Length) dispatches[p]++; };
         window.Dispatcher.Hooks.OperationStarted += dispatch;
-        try { await Task.Delay(5000); }
+        try { await Task.Delay(sampleMilliseconds); }
         finally { window.Dispatcher.Hooks.OperationStarted -= dispatch; }
         process.Refresh(); var seconds = Stopwatch.GetElapsedTime(start).TotalSeconds; var cpu = (process.TotalProcessorTime - beforeCpu).TotalMilliseconds;
         var afterThreads = Threads(process, modules);
         var top = afterThreads.Values.Where(t => beforeThreads.ContainsKey(t.Id))
-            .Select(t => new { t.Id, t.Name, t.StartModule, cpuMilliseconds = Math.Max(0, t.CpuMilliseconds - beforeThreads[t.Id].CpuMilliseconds) })
+            .Select(t => new { t.Id, t.Name, t.DescriptionStatus, t.StartModule, cpuMilliseconds = Math.Max(0, t.CpuMilliseconds - beforeThreads[t.Id].CpuMilliseconds) })
             .OrderByDescending(t => t.cpuMilliseconds).Take(12).ToArray();
         var sample = new { phase, seconds, cpuMilliseconds = cpu, windowVisible = window.IsVisible,
-            description = "Five-second fixture process/thread CPU sample after two seconds settling. Injected status reads; no monitoring, Defender work, AI, driver or real-user workload. Forced software/default rendering preference is recorded separately.",
+            description = "Fixture process/thread CPU sample after two seconds settling. Injected status reads; no monitoring, Defender work, AI, driver or real-user workload. Forced software/default rendering preference is recorded separately.",
             processId = process.Id, renderingTier = RenderCapability.Tier >> 16, softwarePreference = RenderOptions.ProcessRenderMode.ToString(),
             workingSetBytes = process.WorkingSet64, privateBytes = process.PrivateMemorySize64, managedBytes = GC.GetTotalMemory(false),
             trackedThreadCpuMilliseconds = top.Sum(t => t.cpuMilliseconds), topThreads = top,
             dispatcherOperations = dispatches.Select((count, p) => new { priority = ((DispatcherPriority)p).ToString(), count }).Where(x => x.count > 0).ToArray() };
         resourceSamples.Add(sample);
         Stage($"Resource phase {phase}: {cpu:F1} ms process CPU / {seconds:F2}s; hottest thread {top.FirstOrDefault()?.Name}");
+        return sample;
     }
 
     private sealed record ModuleRange(string Name, ulong Start, int Bytes);
-    private sealed record ThreadSample(int Id, string Name, string StartModule, double CpuMilliseconds);
+    private sealed record ThreadSample(int Id, string Name, string DescriptionStatus, string StartModule, double CpuMilliseconds);
     private static Dictionary<int, ThreadSample> Threads(Process process, ModuleRange[] modules)
     {
         var result = new Dictionary<int, ThreadSample>();
@@ -60,12 +61,14 @@ internal static partial class Program
                 try
                 {
                     var handle = OpenThread(0x0840, false, (uint)thread.Id); // Read-only query rights on this fixture process's threads.
-                    string name = "unavailable", module = "unavailable";
+                    string name = "unavailable", module = "unavailable", descriptionStatus = "Thread query unavailable";
                     if (handle != IntPtr.Zero)
                     {
                         try
                         {
-                            if (GetThreadDescription(handle, out var description) == 0 && description != IntPtr.Zero)
+                            var status = GetThreadDescription(handle, out var description);
+                            descriptionStatus = "0x" + status.ToString("X8");
+                            if (status == 0 && description != IntPtr.Zero)
                             {
                                 try { name = Marshal.PtrToStringUni(description) ?? "unnamed"; if (name.Length == 0) name = "unnamed"; }
                                 finally { LocalFree(description); }
@@ -78,7 +81,7 @@ internal static partial class Program
                         }
                         finally { CloseHandle(handle); }
                     }
-                    result[thread.Id] = new(thread.Id, name, module, thread.TotalProcessorTime.TotalMilliseconds);
+                    result[thread.Id] = new(thread.Id, name, descriptionStatus, module, thread.TotalProcessorTime.TotalMilliseconds);
                 }
                 catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException) { }
             }

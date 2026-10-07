@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Buffers;
 
 namespace Sentinel.Core.Protection;
 
@@ -115,23 +116,35 @@ public sealed class FeedRepository(string directory)
         {
             using var response = await http.GetAsync(new Uri(endpoint, "v1/feed"), HttpCompletionOption.ResponseHeadersRead, token);
             if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"Threat server returned HTTP {(int)response.StatusCode}. The previous feed was retained.");
+            var declaredLength = response.Content.Headers.ContentLength;
+            if (declaredLength > FeedVerifier.MaxEnvelopeBytes) throw new InvalidDataException("Threat feed exceeds its size limit.");
             await using var stream = await response.Content.ReadAsStreamAsync(token);
-            using var bytes = new MemoryStream(); var buffer = new byte[64 * 1024]; int count;
+            using var bytes = declaredLength is > 0 ? new MemoryStream((int)declaredLength.Value) : new MemoryStream();
+            var buffer = new byte[64 * 1024]; int count;
             while ((count = await stream.ReadAsync(buffer, token)) > 0)
             {
                 if (bytes.Length + count > FeedVerifier.MaxEnvelopeBytes) throw new InvalidDataException("Threat feed exceeds its size limit.");
                 await bytes.WriteAsync(buffer.AsMemory(0, count), token);
             }
-            var raw = bytes.ToArray();
+            // Keep the received envelope in its existing buffer through verification and staging.
+            var raw = bytes.GetBuffer().AsMemory(0, (int)bytes.Length);
             var previous = Current;
-            var verified = FeedVerifier.Verify(raw, settings.PublicKeyPem, DateTimeOffset.UtcNow, Math.Max(ReadSequence(), previous?.Payload.Sequence ?? 0));
+            var verified = FeedVerifier.Verify(raw.Span, settings.PublicKeyPem, DateTimeOffset.UtcNow, Math.Max(ReadSequence(), previous?.Payload.Sequence ?? 0));
             // An equal sequence must contain the exact same signed payload, not a different rule set.
-            if (File.Exists(CachePath) && verified.Payload.Sequence == ReadSequence() && !raw.AsSpan().SequenceEqual(File.ReadAllBytes(CachePath))) throw new InvalidDataException("Feed content changed without a sequence increase.");
+            if (File.Exists(CachePath) && verified.Payload.Sequence == ReadSequence())
+            {
+                if (!await MatchesCacheAsync(raw, token)) throw new InvalidDataException("Feed content changed without a sequence increase.");
+                // Signature, validity, rollback state and all cache bytes were checked again.
+                // An identical signed envelope needs no replacement or disk flush.
+                token.ThrowIfCancellationRequested();
+                Volatile.Write(ref current, verified);
+                return verified;
+            }
             FileSafety.EnsureDirectory(directory);
             if (File.Exists(CachePath)) _ = FileSafety.NormalizeRegularPath(Path.GetFullPath(CachePath));
             var suffix = "." + Guid.NewGuid().ToString("N") + ".tmp";
             var temporary = CachePath + suffix; var sequenceTemp = SequencePath + suffix;
-            async Task Stage(string path, byte[] data)
+            async Task Stage(string path, ReadOnlyMemory<byte> data)
             {
                 await using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous);
                 await file.WriteAsync(data, token); await file.FlushAsync(token); file.Flush(flushToDisk: true);
@@ -153,5 +166,25 @@ public sealed class FeedRepository(string directory)
             return verified;
         }
         finally { gate.Release(); }
+    }
+    private async Task<bool> MatchesCacheAsync(ReadOnlyMemory<byte> envelope, CancellationToken token)
+    {
+        await using var cache = new FileStream(FileSafety.NormalizeRegularPath(Path.GetFullPath(CachePath)), FileMode.Open,
+            FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        if (cache.Length != envelope.Length) return false;
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        try
+        {
+            var offset = 0;
+            while (offset < envelope.Length)
+            {
+                var count = await cache.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, envelope.Length - offset)), token);
+                if (count == 0 || !buffer.AsSpan(0, count).SequenceEqual(envelope.Span.Slice(offset, count))) return false;
+                offset += count;
+            }
+            token.ThrowIfCancellationRequested();
+            return cache.Length == envelope.Length;
+        }
+        finally { ArrayPool<byte>.Shared.Return(buffer, clearArray: true); }
     }
 }

@@ -116,7 +116,12 @@ public partial class MainWindow
             hint.Visibility = table.SelectedItem is FileFinding ? Visibility.Collapsed : Visibility.Visible;
             evidence.Text = table.SelectedItem is FileFinding finding ? finding.DisplayPath + "\n" + finding.Reason + (finding.Sha256 is { } hash ? "\nSHA-256: " + hash : "") : "";
         };
-        body.Children.Add(Split(main, Inspector("Selected finding", hint, evidence, Row(WhenSelected(DangerButton("Quarantine selected…", () => { if (table.SelectedItem is FileFinding finding) QuarantineFinding(finding); else StatusText = "Choose a known threat or test-file detection first."; }), table, item => !IsAdmin && item is FileFinding { Verdict: FileVerdict.KnownThreat or FileVerdict.TestFile }), WhenSelected(Button("Explain with AI", () => { if (table.SelectedItem is FileFinding finding) { advisorFinding = finding; ShowPage("AI advisor"); } else StatusText = "Select a finding to explain."; }), table), WhenSelected(Button("Copy SHA-256", () => {
+        var rescan = WhenSelected(Button("Scan file again", () => {
+            if (table.SelectedItem is FileFinding finding) StartEngineScan(finding.Path);
+        }), table);
+        const string rescanHelp = "Reads the current file using the current threat list and selected scan speed. Archive findings rescan the whole archive. Results replace this view and are saved in Scan history.";
+        rescan.ToolTip = rescanHelp; System.Windows.Automation.AutomationProperties.SetHelpText(rescan, rescanHelp);
+        body.Children.Add(Split(main, Inspector("Selected finding", hint, evidence, Row(rescan, WhenSelected(DangerButton("Quarantine selected…", () => { if (table.SelectedItem is FileFinding finding) QuarantineFinding(finding); else StatusText = "Choose a known threat or test-file detection first."; }), table, item => !IsAdmin && item is FileFinding { Verdict: FileVerdict.KnownThreat or FileVerdict.TestFile }), WhenSelected(Button("Explain with AI", () => { if (table.SelectedItem is FileFinding finding) { advisorFinding = finding; ShowPage("AI advisor"); } else StatusText = "Select a finding to explain."; }), table), WhenSelected(Button("Copy SHA-256", () => {
             if (table.SelectedItem is not FileFinding { Sha256: { } hash }) return;
             try { System.Windows.Clipboard.SetText(hash); StatusText = "SHA-256 copied."; } catch (Exception ex) { StatusText = ex.Message; }
         }), table, item => item is FileFinding { Sha256.Length: 64 })))));

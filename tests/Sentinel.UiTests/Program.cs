@@ -218,7 +218,7 @@ internal static partial class Program
                     var table = Descendants<DataGrid>(Field<StackPanel>(window, "PageBody")).First();
                     Check("Scanner has retained fixture evidence", table.Items.Count == 3);
                     Check("Scanner starts without an implicit selection or enabled selection actions", table.SelectedItem is null
-                        && !FindButton(window, "Quarantine selected…").IsEnabled && !FindButton(window, "Copy SHA-256").IsEnabled);
+                        && !FindButton(window, "Quarantine selected…").IsEnabled && !FindButton(window, "Copy SHA-256").IsEnabled && !FindButton(window, "Scan file again").IsEnabled);
                     table.SelectedIndex = 0; await Drain();
                     var admin = IsAdministrator();
                     Check("Quarantine eligibility respects the actual runner privilege", FindButton(window, "Quarantine selected…").IsEnabled == !admin);
@@ -253,10 +253,14 @@ internal static partial class Program
         Capture(window, "scanner-system-color-branch", true);
         Theme.Apply(); window.UpdateLayout(); await Drain();
 
+        Stage("Checking selected file rescan"); await VerifySelectedRescan(window, profile);
         Stage("Checking local scan controls"); await VerifyScanControls(window, profile);
         Stage("Checking scanner view retention"); await VerifyRetention(window);
         await Navigate(window, "Home");
         Status(window, "Native Windows verification • harmless fixture data • no real protection setting was changed.");
+        if (profileRun) idle = await SampleResources(window, "immediately-after-verification", 3000);
+        else
+        {
         await Task.Delay(2000); await Drain();
         using var process = Process.GetCurrentProcess(); process.Refresh();
         var start = Stopwatch.GetTimestamp(); var cpu = process.TotalProcessorTime;
@@ -270,7 +274,27 @@ internal static partial class Program
             seconds = Stopwatch.GetElapsedTime(start).TotalSeconds, cpuMilliseconds = (process.TotalProcessorTime - cpu).TotalMilliseconds,
             workingSetBytes = process.WorkingSet64, privateBytes = process.PrivateMemorySize64, managedBytes = GC.GetTotalMemory(false), processors = Environment.ProcessorCount,
             dispatcherOperations = dispatches.Select((count, priority) => new { priority = ((DispatcherPriority)priority).ToString(), count }).Where(x => x.count > 0).ToArray() };
+        }
         Check("Rendering/navigation never requested an OS write through the injected runner", runner.UnexpectedCalls.IsEmpty);
+    }
+    private static async Task VerifySelectedRescan(MainWindow window, string profile)
+    {
+        await Navigate(window, "File scanner");
+        var table = Descendants<DataGrid>(Field<StackPanel>(window, "PageBody")).First();
+        table.SelectedIndex = 0; await Drain();
+        var finding = (FileFinding)table.SelectedItem;
+        var replacement = "Harmless current bytes differ from the retained display-only detection. " + new string('x', 400);
+        await File.WriteAllTextAsync(finding.Path, replacement);
+        Check("Selected rescan is available with whole-file behavior described", FindButton(window, "Scan file again").IsEnabled
+            && AutomationProperties.GetHelpText(FindButton(window, "Scan file again")).Contains("whole archive"));
+        await Click(FindButton(window, "Scan file again"));
+        await Until(() => !Field<bool>(window, "busy"), "Selected rescan did not finish");
+        var report = Field<ScanReport>(window, "lastScan");
+        Check("Selected rescan reads current bytes and replaces historical detection evidence", report.Scanned == 1 && !report.Incomplete
+            && report.Detected == 0 && report.BytesRead == System.Text.Encoding.UTF8.GetByteCount(replacement)
+            && Field<ObservableCollection<FileFinding>>(window, "engineFindings").Count == 0);
+        var saved = ScanReports.Latest(Path.Combine(profile, "reports"));
+        Check("Selected rescan saves current results in history", saved?.StartedAt == report.StartedAt && saved.BytesRead == report.BytesRead);
     }
     private static async Task Expand(MainWindow window, string title)
     {

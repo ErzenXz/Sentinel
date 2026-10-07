@@ -95,6 +95,54 @@ internal static class ProtectionTests
             response=Bundle([new(new string('f',64),"Different","Test")],sequence:1);
             await Fails<InvalidDataException>(()=>repo.UpdateAsync(http,new("https://example.com/",PublicKey)));
         });
+        test("Multi-chunk feed refresh preserves every indicator and exact cache bytes", async () => {
+            using var tmp = new Temporary(); var repo = new FeedRepository(tmp.File("feed"));
+            var rules = Enumerable.Range(0, 1200).Select(i => new HashIndicator(i.ToString("X64"), "Harmless transport fixture", "Local test")).ToArray();
+            var envelope = Bundle(rules); Check(envelope.Length > 128 * 1024);
+            using var http = new HttpClient(new FakeHttp(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(envelope) })));
+            var settings = new ProtectionSettings("https://example.com/", PublicKey);
+            await repo.UpdateAsync(http, settings);
+            var unchangedTime = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            File.SetLastWriteTimeUtc(tmp.File("feed/feed.json"), unchangedTime);
+            File.SetLastWriteTimeUtc(tmp.File("feed/sequence.txt"), unchangedTime);
+            var refreshed = await repo.UpdateAsync(http, settings);
+            Check(refreshed.Hashes.Count == rules.Length && refreshed.Hashes.ContainsKey(rules[^1].Sha256));
+            Check(File.ReadAllBytes(tmp.File("feed/feed.json")).SequenceEqual(envelope));
+            Check(File.GetLastWriteTimeUtc(tmp.File("feed/feed.json")) == unchangedTime && File.GetLastWriteTimeUtc(tmp.File("feed/sequence.txt")) == unchangedTime);
+            var cached = envelope.ToArray(); cached[^8] ^= 1; await File.WriteAllBytesAsync(tmp.File("feed/feed.json"), cached);
+            await Fails<InvalidDataException>(() => repo.UpdateAsync(http, settings));
+            Check(ReferenceEquals(repo.Current, refreshed) && File.ReadAllBytes(tmp.File("feed/feed.json")).SequenceEqual(cached));
+        });
+        test("Oversized declared feed and cache reject refresh while retaining trusted state", async () => {
+            using var tmp = new Temporary(); var repo = new FeedRepository(tmp.File("feed")); var envelope = Bundle();
+            var oversizedHeader = false;
+            using var http = new HttpClient(new FakeHttp(_ => {
+                var content = new ByteArrayContent(envelope);
+                if (oversizedHeader) content.Headers.ContentLength = FeedVerifier.MaxEnvelopeBytes + 1L;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+            }));
+            var settings = new ProtectionSettings("https://example.com/", PublicKey);
+            var trusted = await repo.UpdateAsync(http, settings); oversizedHeader = true;
+            await Fails<InvalidDataException>(() => repo.UpdateAsync(http, settings));
+            Check(ReferenceEquals(repo.Current, trusted) && File.ReadAllBytes(tmp.File("feed/feed.json")).SequenceEqual(envelope));
+            oversizedHeader = false;
+            await using (var cache = new FileStream(tmp.File("feed/feed.json"), FileMode.Open, FileAccess.Write, FileShare.None)) cache.SetLength(FeedVerifier.MaxEnvelopeBytes + 1L);
+            await Fails<InvalidDataException>(() => repo.UpdateAsync(http, settings));
+            Check(ReferenceEquals(repo.Current, trusted) && new FileInfo(tmp.File("feed/feed.json")).Length == FeedVerifier.MaxEnvelopeBytes + 1L);
+        });
+        test("Canceled feed refresh retains committed cache and leaves no staging files", async () => {
+            using var tmp = new Temporary(); var repo = new FeedRepository(tmp.File("feed")); var envelope = Bundle();
+            using var cancel = new CancellationTokenSource(); var cancelRefresh = false;
+            using var http = new HttpClient(new FakeHttp(_ => {
+                if (cancelRefresh) cancel.Cancel();
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(envelope) });
+            }));
+            var settings = new ProtectionSettings("https://example.com/", PublicKey);
+            var trusted = await repo.UpdateAsync(http, settings); cancelRefresh = true;
+            await Fails<OperationCanceledException>(() => repo.UpdateAsync(http, settings, cancel.Token));
+            Check(ReferenceEquals(repo.Current, trusted) && File.ReadAllBytes(tmp.File("feed/feed.json")).SequenceEqual(envelope));
+            Check(!Directory.EnumerateFiles(tmp.File("feed"), "*.tmp").Any());
+        });
         test("Independent scanner detects an exact hash without Defender", async () => {
             using var tmp = new Temporary(); var bytes=Encoding.UTF8.GetBytes("Harmless exact match fixture");await File.WriteAllBytesAsync(tmp.File("sample.bin"),bytes);
             var result=await new FileScanner(FeedFor(bytes)).ScanFileAsync(tmp.File("sample.bin"));Check(result.Verdict==FileVerdict.KnownThreat && result.Bytes==bytes.Length);
