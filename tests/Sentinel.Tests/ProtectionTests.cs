@@ -237,6 +237,11 @@ internal static class ProtectionTests
         test("Folder monitor reports independent detection on new files", async () => {
             using var tmp=new Temporary();var bytes=Encoding.UTF8.GetBytes("watcher benign fixture");var feed=FeedFor(bytes);var detected=new TaskCompletionSource<FileFinding>(TaskCreationOptions.RunContinuationsAsynchronously);
             await using var monitor=new FolderMonitor(tmp.Root,()=>new FileScanner(feed),finding=>{if(finding.Verdict==FileVerdict.KnownThreat)detected.TrySetResult(finding);},problem=>detected.TrySetException(new Exception(problem)));
+            // This case tests a settled new-file event, separately from initial coverage.
+            // Writing during recovery can legitimately produce a temporary sharing/size gap.
+            using var startup = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            while (monitor.RecoveryStatus.LastCompleted is null) await Task.Delay(10, startup.Token);
+            Check(!monitor.RecoveryStatus.Incomplete && monitor.IsRunning);
             await File.WriteAllBytesAsync(tmp.File("download.bin"),bytes);var result=await detected.Task.WaitAsync(TimeSpan.FromSeconds(8));Check(result.Verdict==FileVerdict.KnownThreat);
         });
     }
