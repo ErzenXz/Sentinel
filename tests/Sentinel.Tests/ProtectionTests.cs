@@ -78,6 +78,18 @@ internal static class ProtectionTests
             Fails<InvalidDataException>(() => FeedVerifier.Verify(Bundle([indicator,indicator]), PublicKey, DateTimeOffset.UtcNow));
             return Task.CompletedTask;
         });
+        test("UTF-8 feed decoding accepts reordered escaped base64 and rejects missing or malformed encodings", () => {
+            var signed = JsonSerializer.Deserialize<SignedFeed>(Bundle([new(new string('a', 64), "Transport fixture", "Local test")]), FeedVerifier.Json)!;
+            var reordered = JsonSerializer.SerializeToUtf8Bytes(new { SIGNATURE = signed.Signature, PAYLOAD = signed.Payload, ALGORITHM = signed.Algorithm, SCHEMA = signed.Schema }, FeedVerifier.Json);
+            Check(FeedVerifier.Verify(reordered, PublicKey, DateTimeOffset.UtcNow).Hashes.Count == 1);
+            foreach (var invalid in new[] {
+                "{\"schema\":1,\"algorithm\":\"RSA-SHA256\",\"payload\":null,\"signature\":\"AA==\"}",
+                "{\"schema\":1,\"algorithm\":\"RSA-SHA256\",\"payload\":\"%%%\",\"signature\":\"AA==\"}",
+                "{\"schema\":1,\"algorithm\":\"RSA-SHA256\",\"payload\":\"AA==\"}",
+                "{\"schema\":1,\"algorithm\":\"RSA-SHA256\",\"payload\":12,\"signature\":\"AA==\"}" })
+                Fails<InvalidDataException>(() => FeedVerifier.Verify(Encoding.UTF8.GetBytes(invalid), PublicKey, DateTimeOffset.UtcNow));
+            return Task.CompletedTask;
+        });
         test("Failed signed update retains the previous verified feed", async () => {
             using var tmp = new Temporary(); var repository = new FeedRepository(tmp.File("feed"));
             var good = Bundle(sequence:2); byte[] response = good;

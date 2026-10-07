@@ -68,9 +68,9 @@ internal static partial class Program
                         {
                             var status = GetThreadDescription(handle, out var description);
                             descriptionStatus = "0x" + status.ToString("X8");
-                            if (status == 0 && description != IntPtr.Zero)
+                            if (description != IntPtr.Zero)
                             {
-                                try { name = Marshal.PtrToStringUni(description) ?? "unnamed"; if (name.Length == 0) name = "unnamed"; }
+                                try { if (status >= 0) { name = Marshal.PtrToStringUni(description) ?? "unnamed"; if (name.Length == 0) name = "unnamed"; } }
                                 finally { LocalFree(description); }
                             }
                             if (NtQueryInformationThread(handle, 9, out var address, IntPtr.Size, IntPtr.Zero) == 0)

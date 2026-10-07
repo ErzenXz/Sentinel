@@ -13,7 +13,7 @@ public sealed class VerifiedFeed
 {
     public FeedPayload Payload { get; }
     public IReadOnlyDictionary<string, HashIndicator> Hashes { get; }
-    internal VerifiedFeed(FeedPayload payload)
+    internal VerifiedFeed(FeedPayload payload, Dictionary<string, HashIndicator>? validatedHashes = null)
     {
         // Labels and source names repeat thousands of times in public IOC lists.
         // Share identical text inside this catalog only; never globally intern feed data.
@@ -24,19 +24,25 @@ public sealed class VerifiedFeed
             text.Add(value, value); return value;
         }
         var rules = new HashIndicator[payload.Hashes.Count];
+        var hashes = validatedHashes ?? new Dictionary<string, HashIndicator>(rules.Length, StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < rules.Length; i++)
         {
             var rule = payload.Hashes[i]; var label = Share(rule.Label); var source = Share(rule.Source);
             rules[i] = ReferenceEquals(label, rule.Label) && ReferenceEquals(source, rule.Source) ? rule : rule with { Label = label, Source = source };
+            if (validatedHashes is null) hashes.Add(rule.Sha256, rules[i]);
+            else hashes[rule.Sha256] = rules[i];
         }
         Payload = payload with { Hashes = rules };
-        Hashes = rules.ToDictionary(x => x.Sha256, StringComparer.OrdinalIgnoreCase);
+        Hashes = hashes;
     }
     public bool IsExpired(DateTimeOffset now) => Payload.ExpiresAt <= now;
 }
 
 public static class FeedVerifier
 {
+    // The byte-array JSON converter decodes base64 directly from UTF-8, avoiding
+    // a second, large UTF-16 representation of the envelope's payload/signature.
+    private sealed record DecodedSignedFeed(int Schema, string Algorithm, byte[]? Payload, byte[]? Signature);
     public const int MaxEnvelopeBytes = 24 * 1024 * 1024;
     public const int MaxIndicators = 100_000;
     public static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
@@ -50,11 +56,12 @@ public static class FeedVerifier
     public static VerifiedFeed Verify(ReadOnlySpan<byte> envelope, string pinnedPem, DateTimeOffset now, long minimumSequence = 0, bool allowExpired = false)
     {
         if (envelope.Length > MaxEnvelopeBytes) throw new InvalidDataException("Threat feed exceeds its size limit.");
-        var signed = JsonSerializer.Deserialize<SignedFeed>(envelope, Json) ?? throw new InvalidDataException("Missing feed envelope.");
+        DecodedSignedFeed signed;
+        try { signed = JsonSerializer.Deserialize<DecodedSignedFeed>(envelope, Json) ?? throw new InvalidDataException("Missing feed envelope."); }
+        catch (JsonException ex) { throw new InvalidDataException("Malformed feed envelope or base64 encoding.", ex); }
         if (signed.Schema != 1 || signed.Algorithm != "RSA-SHA256") throw new InvalidDataException("Unsupported feed format.");
-        byte[] data, signature;
-        try { data = Convert.FromBase64String(signed.Payload); signature = Convert.FromBase64String(signed.Signature); }
-        catch (FormatException) { throw new InvalidDataException("Malformed feed encoding."); }
+        var data = signed.Payload ?? throw new InvalidDataException("Missing feed payload encoding.");
+        var signature = signed.Signature ?? throw new InvalidDataException("Missing feed signature encoding.");
         _ = Fingerprint(pinnedPem);
         using var rsa = RSA.Create(); rsa.ImportFromPem(pinnedPem);
         if (rsa.KeySize < 3072 || !rsa.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1)) throw new CryptographicException("Threat feed signature is invalid. The previous feed was retained.");
@@ -63,12 +70,12 @@ public static class FeedVerifier
         if (payload.IssuedAt > now.AddMinutes(5) || payload.ExpiresAt <= payload.IssuedAt || payload.ExpiresAt - payload.IssuedAt > TimeSpan.FromDays(8)) throw new InvalidDataException("Invalid feed validity period.");
         if (!allowExpired && payload.ExpiresAt <= now) throw new InvalidDataException("The threat feed has expired. Ask the server operator to publish an update.");
         if (payload.Hashes is null || payload.Hashes.Count > MaxIndicators) throw new InvalidDataException("Invalid indicator count.");
-        var unique = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var hashes = new Dictionary<string, HashIndicator>(payload.Hashes.Count, StringComparer.OrdinalIgnoreCase);
         foreach (var rule in payload.Hashes)
         {
-            if (rule is null || !IsHash(rule.Sha256) || !unique.Add(rule.Sha256) || !SafeLabel(rule.Label) || !SafeLabel(rule.Source)) throw new InvalidDataException("Malformed or duplicate threat indicator.");
+            if (rule is null || !IsHash(rule.Sha256) || !SafeLabel(rule.Label) || !SafeLabel(rule.Source) || !hashes.TryAdd(rule.Sha256, rule)) throw new InvalidDataException("Malformed or duplicate threat indicator.");
         }
-        return new(payload);
+        return new(payload, hashes);
     }
     public static bool IsHash(string? hash) => hash is { Length: 64 } && hash.All(Uri.IsHexDigit);
     private static bool SafeLabel(string? text) => text is { Length: > 0 and <= 160 } && !text.Any(char.IsControl);
