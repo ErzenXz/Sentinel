@@ -71,6 +71,16 @@ try {
     if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $identity.Name.Split('\')[-1] -notmatch '^SnÜ[0-9a-f]{12}$') { throw 'Lifecycle child requires its disposable hosted CI fixture account' }
     $standardUser = -not [Security.Principal.WindowsPrincipal]::new($identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     Check $standardUser 'Installer and uninstaller run as a standard user without UAC'
+    # Start-Process with alternate credentials inherits the runner environment.
+    # Correct only this child account's environment from its registered SID.
+    $registered = Get-ItemPropertyValue -LiteralPath ("Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\" + $identity.User.Value) -Name ProfileImagePath
+    $fixtureProfile = [Environment]::ExpandEnvironmentVariables($registered)
+    Check ([IO.Path]::IsPathRooted($fixtureProfile) -and [IO.Path]::GetFileName($fixtureProfile) -like 'SnÜ*') 'Fixture profile belongs to the disposable account SID'
+    $env:USERPROFILE = $fixtureProfile
+    $env:LOCALAPPDATA = Join-Path $fixtureProfile 'AppData/Local'
+    $env:APPDATA = Join-Path $fixtureProfile 'AppData/Roaming'
+    $env:USERNAME = $identity.Name.Split('\')[-1]
+    $env:USERDOMAIN = $identity.Name.Split('\')[0]
     # A secondary-logon account has not run the interactive Windows shell yet.
     # Initialize only its own standard known folders, as a first login would.
     $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData, [Environment+SpecialFolderOption]::Create)
