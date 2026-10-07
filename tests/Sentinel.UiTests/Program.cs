@@ -45,9 +45,14 @@ internal static class Program
         var option = Array.IndexOf(args, "--output");
         output = Path.GetFullPath(option >= 0 && option + 1 < args.Length ? args[option + 1] : "artifacts/native-ui");
         Directory.CreateDirectory(output);
+        using var watchdog = new System.Threading.Timer(_ => {
+            File.WriteAllText(Path.Combine(output, "timeout.txt"), "Native verification exceeded its three-minute runtime deadline. See progress.txt and the CI log.\n");
+            Environment.Exit(1);
+        }, null, TimeSpan.FromMinutes(3), Timeout.InfiniteTimeSpan);
+        Stage("Creating the isolated WPF application");
         var temporary = Path.Combine(AppContext.BaseDirectory, "ui-fixtures-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
-        var app = new Sentinel.App.App { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        var app = new VerificationApp { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         app.InitializeComponent();
         RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
         Theme.Apply();
@@ -56,11 +61,14 @@ internal static class Program
         using var profile = LocalStore.UseTemporaryProfile(temporary);
         try
         {
-            SeedReport(temporary);
+            // Fixture I/O must not capture a dispatcher context before its pump starts.
+            Task.Run(() => SeedReport(temporary)).GetAwaiter().GetResult();
+            Stage("Constructing the fixture window");
             var runner = new FixtureRunner { BlockReads = true };
             var window = new MainWindow(runner) { Title = "Sentinel — native Windows UI verification — fixture data" };
             app.MainWindow = window;
             window.Show();
+            Stage("Starting the dispatcher");
             window.Dispatcher.BeginInvoke(new Action(async () => {
                 try { await Verify(window, runner, temporary); }
                 catch (Exception ex) { failures.Add("Unexpected verification error: " + ex); }
@@ -87,6 +95,11 @@ internal static class Program
             Directory.Delete(temporary, recursive: true);
         }
         return exitCode;
+    }
+    private static void Stage(string message)
+    {
+        Console.WriteLine(message);
+        File.AppendAllText(Path.Combine(output, "progress.txt"), DateTimeOffset.UtcNow.ToString("O") + " " + message + "\n");
     }
     private static void Check(string name, bool passed)
     {
@@ -149,6 +162,7 @@ internal static class Program
     }
     private static async Task Verify(MainWindow window, FixtureRunner runner, string profile)
     {
+        Stage("Checking startup cancellation");
         await Until(() => Field<bool>(window, "busy"), "Startup fixture refresh did not begin");
         Check("Busy startup disables page actions while cancellation and navigation remain reachable",
             !Field<StackPanel>(window, "PageBody").IsEnabled && Field<Button>(window, "StopOperation").IsVisible
@@ -164,6 +178,7 @@ internal static class Program
         await Until(() => !Field<bool>(window, "busy"), "Fixture refresh did not finish");
         Check("Only fixture snapshot reads ran; no mutation script was requested", runner.UnexpectedCalls.IsEmpty && runner.Calls == 6);
 
+        Stage("Rendering all pages at both window sizes");
         foreach (var (width, height) in new[] { (1200d, 820d), (960d, 680d) })
         {
             window.Width = width; window.Height = height; window.UpdateLayout(); await Drain();
@@ -202,8 +217,8 @@ internal static class Program
         Capture(window, "scanner-system-color-branch", true);
         Theme.Apply(); window.UpdateLayout(); await Drain();
 
-        await VerifyScanControls(window, profile);
-        await VerifyRetention(window);
+        Stage("Checking local scan controls"); await VerifyScanControls(window, profile);
+        Stage("Checking scanner view retention"); await VerifyRetention(window);
         await Navigate(window, "Home");
         Status(window, "Native Windows verification • harmless fixture data • no real protection setting was changed.");
         await Task.Delay(2000); await Drain();
@@ -334,5 +349,11 @@ internal static class Program
         public ConcurrentQueue<string> Messages { get; } = new();
         public override void Write(string? message) { if (!string.IsNullOrWhiteSpace(message) && Messages.Count < 128) Messages.Enqueue(message); }
         public override void WriteLine(string? message) => Write(message);
+    }
+    // Application queues OnStartup in its constructor, even with Dispatcher.Run.
+    // Keep real application resources/lifecycle without opening a production window.
+    private sealed class VerificationApp : Sentinel.App.App
+    {
+        protected override void OnStartup(StartupEventArgs e) { }
     }
 }
