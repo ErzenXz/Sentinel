@@ -65,7 +65,7 @@ internal static class Program
             Task.Run(() => SeedReport(temporary)).GetAwaiter().GetResult();
             Stage("Constructing the fixture window");
             var runner = new FixtureRunner { BlockReads = true };
-            var window = new MainWindow(runner) { Title = "Sentinel — native Windows UI verification — fixture data" };
+            var window = new MainWindow(runner) { Title = "Sentinel — native Windows UI verification — fixture data", Width = 960, Height = 680 };
             app.MainWindow = window;
             window.Show();
             Stage("Starting the dispatcher");
@@ -86,7 +86,7 @@ internal static class Program
                     app.Shutdown(exitCode);
                 }
             }), DispatcherPriority.ApplicationIdle);
-            Dispatcher.Run();
+            app.Run();
         }
         finally
         {
@@ -115,6 +115,12 @@ internal static class Program
         if (element is T match) yield return match;
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++)
             foreach (var child in Descendants<T>(VisualTreeHelper.GetChild(element, i))) yield return child;
+    }
+    private static IEnumerable<T> LogicalDescendants<T>(DependencyObject element) where T : DependencyObject
+    {
+        if (element is T match) yield return match;
+        foreach (var child in LogicalTreeHelper.GetChildren(element).OfType<DependencyObject>())
+            foreach (var descendant in LogicalDescendants<T>(child)) yield return descendant;
     }
     private static bool HasAncestor<T>(DependencyObject element) where T : DependencyObject
     {
@@ -193,7 +199,8 @@ internal static class Program
                     table.SelectedIndex = 0; await Drain();
                     var admin = IsAdministrator();
                     Check("Quarantine eligibility respects the actual runner privilege", FindButton(window, "Quarantine selected…").IsEnabled == !admin);
-                    Check("Selected full evidence and hash are available", FindButton(window, "Copy SHA-256").IsEnabled && Descendants<TextBox>(window).Any(t => t.Text.Contains(new string('A', 64))));
+                    var evidence = LogicalDescendants<TextBox>(window).Single(t => AutomationProperties.GetName(t) == "Selected finding evidence");
+                    Check("Selected full evidence and hash are available", FindButton(window, "Copy SHA-256").IsEnabled && evidence.Text.Contains(new string('A', 64)));
                     var search = Descendants<TextBox>(window).Single(t => AutomationProperties.GetName(t) == "Search findings by path, evidence, or SHA-256");
                     search.Text = "no-matching-fixture"; await Drain();
                     Check("Finding search presents an empty view without discarding evidence", table.Items.Count == 0 && Field<ObservableCollection<FileFinding>>(window, "engineFindings").Count == 3);
@@ -201,7 +208,10 @@ internal static class Program
                 }
                 if (page == "Firewall")
                 {
+                    await Expand(window, "Optional AI review · Jev");
                     Check("No network selection can authorize a block or model review", !FindButton(window, "Block selected app…").IsEnabled && !FindButton(window, "Review selected with Jev").IsEnabled);
+                    LogicalDescendants<Expander>(window).First(e => e.Header as string == "Optional AI review · Jev").IsExpanded = false;
+                    Field<ScrollViewer>(window, "PageScroll").ScrollToTop(); await Drain();
                 }
                 Capture(window, Slug(page) + "-" + (int)width, true);
             }
@@ -289,6 +299,10 @@ internal static class Program
         var width = (int)Math.Ceiling(root.ActualWidth); var height = (int)Math.Ceiling(root.ActualHeight);
         if (width is < 1 or > 4000 || height is < 1 or > 4000) throw new InvalidOperationException("Unexpected render size.");
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        // Window background is outside the client visual; preserve that actual brush.
+        var background = new DrawingVisual();
+        using (var context = background.RenderOpen()) context.DrawRectangle(window.Background, null, new Rect(0, 0, width, height));
+        bitmap.Render(background);
         bitmap.Render(root);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         var path = Path.Combine(output, name + ".png"); using (var stream = File.Create(path)) encoder.Save(stream);
