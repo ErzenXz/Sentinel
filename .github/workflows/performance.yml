@@ -1,0 +1,30 @@
+name: Windows resource investigation
+on:
+  push:
+    branches: [codex/windows-performance]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  profile:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build native fixture profiler
+        run: dotnet build tests/Sentinel.UiTests -c Release
+      - name: Fresh default renderer
+        run: dotnet run --project tests/Sentinel.UiTests -c Release --no-build -- --profile --render default --output artifacts/resource-profile/default-fresh
+      - name: Fresh software renderer
+        run: dotnet run --project tests/Sentinel.UiTests -c Release --no-build -- --profile --render software --output artifacts/resource-profile/software-fresh
+      - name: Software renderer after full verification
+        run: dotnet run --project tests/Sentinel.UiTests -c Release --no-build -- --profile --render software --after-verification --output artifacts/resource-profile/software-after-verification
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-Resource-Profile
+          path: artifacts/resource-profile
+          if-no-files-found: error

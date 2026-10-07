@@ -22,7 +22,7 @@ using Sentinel.App;
 using Sentinel.Core;
 using Sentinel.Core.Protection;
 
-internal static class Program
+internal static partial class Program
 {
     private static readonly List<object> checks = [];
     private static readonly List<object> captures = [];
@@ -32,6 +32,9 @@ internal static class Program
     private static string output = "";
     private static object? idle;
     private static object? retention;
+    private static readonly List<object> resourceSamples = [];
+    private static bool profileRun;
+    private static string rendering = "software";
     private static int exitCode = 1;
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
     private static readonly string[] pages = ["Home", "File scanner", "Firewall", "Applications", "Defender scans", "Quarantine", "Scan history", "AI advisor", "Activity", "Settings"];
@@ -42,6 +45,16 @@ internal static class Program
         if (!OperatingSystem.IsWindows()) { Console.Error.WriteLine("Native WPF verification requires Windows."); return 1; }
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
+        profileRun = args.Contains("--profile");
+        var afterVerification = args.Contains("--after-verification");
+        var renderOption = Array.IndexOf(args, "--render");
+        if (renderOption >= 0)
+        {
+            if (!profileRun || renderOption + 1 >= args.Length || args[renderOption + 1] is not ("default" or "software"))
+                throw new ArgumentException("Use --profile --render default|software.");
+            rendering = args[renderOption + 1];
+        }
+        if (afterVerification && !profileRun) throw new ArgumentException("Use --after-verification only with --profile.");
         var option = Array.IndexOf(args, "--output");
         output = Path.GetFullPath(option >= 0 && option + 1 < args.Length ? args[option + 1] : "artifacts/native-ui");
         Directory.CreateDirectory(output);
@@ -54,7 +67,7 @@ internal static class Program
         Directory.CreateDirectory(temporary);
         var app = new Sentinel.App.App(verificationStartup: true) { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         app.InitializeComponent();
-        RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
+        if (rendering == "software") RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
         Theme.Apply();
         PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Error;
         PresentationTraceSources.DataBindingSource.Listeners.Add(bindingErrors);
@@ -64,13 +77,22 @@ internal static class Program
             // Fixture I/O must not capture a dispatcher context before its pump starts.
             Task.Run(() => SeedReport(temporary)).GetAwaiter().GetResult();
             Stage("Constructing the fixture window");
-            var runner = new FixtureRunner { BlockReads = true };
+            var runner = new FixtureRunner { BlockReads = !profileRun || afterVerification };
             var window = new MainWindow(runner) { Title = "Sentinel — native Windows UI verification — fixture data", Width = 960, Height = 680 };
             app.MainWindow = window;
             window.Show();
             Stage("Starting the dispatcher");
             window.Dispatcher.BeginInvoke(new Action(async () => {
-                try { await Verify(window, runner, temporary); }
+                try
+                {
+                    if (!profileRun || afterVerification) await Verify(window, runner, temporary);
+                    else
+                    {
+                        await Until(() => !Field<bool>(window, "busy") && runner.Calls == 3, "Fixture startup did not settle");
+                        Check("Fresh fixture startup finishes without OS mutation requests", runner.UnexpectedCalls.IsEmpty);
+                    }
+                    if (profileRun) await ProfileResources(window);
+                }
                 catch (Exception ex) { failures.Add("Unexpected verification error: " + ex); }
                 finally
                 {
@@ -353,7 +375,8 @@ internal static class Program
     private static void WriteReport(FixtureRunner runner)
     {
         var report = new { schemaVersion = 1, renderedAt = DateTimeOffset.UtcNow, commit = Environment.GetEnvironmentVariable("GITHUB_SHA"),
-            description = "Actual Windows WPF software-rendered client area, fixture profile and injected read-only status data. The real production control tree, templates, fonts, navigation, local scans and shutdown run. No paid AI or OS protection change. This does not certify native ARM64, Narrator, OS high-contrast, hardware DPI, UAC, DPAPI recovery or enforcement.",
+            description = "Actual Windows WPF fixture profile and injected read-only status data. No paid AI or OS protection change. This does not certify native ARM64, Narrator, OS high-contrast, hardware DPI, UAC, DPAPI recovery or enforcement. Resource profiling phases are test-only diagnostics, not comparative AV benchmarks.",
+            profileRun, rendering, resourceSamples,
             os = RuntimeInformation.OSDescription, architecture = RuntimeInformation.ProcessArchitecture.ToString(), dotnet = Environment.Version.ToString(), elevatedRunner = IsAdministrator(),
             exitCode, checks, captures, layoutIssues, failures, bindingErrors = bindingErrors.Messages.ToArray(),
             fixtureReads = runner.Calls, canceledFixtureReads = runner.CanceledReads, unexpectedScripts = runner.UnexpectedCalls.ToArray(), idle, retention };
