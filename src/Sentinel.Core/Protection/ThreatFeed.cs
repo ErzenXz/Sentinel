@@ -8,6 +8,7 @@ public sealed record HashIndicator(string Sha256, string Label, string Source);
 public sealed record FeedPayload(int Schema, long Sequence, DateTimeOffset IssuedAt, DateTimeOffset ExpiresAt, IReadOnlyList<HashIndicator> Hashes);
 public sealed record SignedFeed(int Schema, string Algorithm, string Payload, string Signature);
 public sealed record ProtectionSettings(string Endpoint = "http://127.0.0.1:8787/", string PublicKeyPem = "");
+public sealed record FeedRefreshResult(VerifiedFeed Feed, bool HashSetChanged);
 
 public sealed class VerifiedFeed
 {
@@ -124,6 +125,11 @@ public sealed class FeedRepository(string directory)
         finally { gate.Release(); }
     }
     public async Task<VerifiedFeed> UpdateAsync(HttpClient http, ProtectionSettings settings, CancellationToken token = default)
+        => (await RefreshAsync(http, settings, token)).Feed;
+
+    // Compare the committed hash set while holding the update gate. Renewed expiry,
+    // sequence, labels or provenance alone do not require reading watched files again.
+    public async Task<FeedRefreshResult> RefreshAsync(HttpClient http, ProtectionSettings settings, CancellationToken token = default)
     {
         var endpoint = AiClient.ValidateEndpoint(settings.Endpoint);
         _ = FeedVerifier.Fingerprint(settings.PublicKeyPem);
@@ -152,6 +158,9 @@ public sealed class FeedRepository(string directory)
             if (previous is not null && verified.Payload.Sequence == previous.Payload.Sequence
                 && !previous.MatchesSignedPayload(verified))
                 throw new InvalidDataException("Feed content changed without a sequence increase.");
+            var activeHashes = (previous ?? BuiltInCatalog.Current).Hashes;
+            var hashSetChanged = activeHashes.Count != verified.Hashes.Count
+                || verified.Hashes.Keys.Any(hash => !activeHashes.ContainsKey(hash));
             // An equal sequence must contain the exact same signed payload, not a different rule set.
             if (File.Exists(CachePath) && verified.Payload.Sequence == ReadSequence())
             {
@@ -160,7 +169,7 @@ public sealed class FeedRepository(string directory)
                 // An identical signed envelope needs no replacement or disk flush.
                 token.ThrowIfCancellationRequested();
                 Volatile.Write(ref current, verified);
-                return verified;
+                return new(verified, hashSetChanged);
             }
             FileSafety.EnsureDirectory(directory);
             if (File.Exists(CachePath)) _ = FileSafety.NormalizeRegularPath(Path.GetFullPath(CachePath));
@@ -185,7 +194,7 @@ public sealed class FeedRepository(string directory)
                 if (File.Exists(temporary)) File.Delete(temporary);
                 if (File.Exists(sequenceTemp)) File.Delete(sequenceTemp);
             }
-            return verified;
+            return new(verified, hashSetChanged);
         }
         finally { gate.Release(); }
     }

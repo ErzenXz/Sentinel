@@ -120,16 +120,16 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
             var size = stream.Length;
             if (size > limits.MaxFileBytes) return new(new(full, FileVerdict.Skipped, "File exceeds the configured scan size limit."), [], 0, 0);
             var content = await InspectStreamAsync(stream, full, size, limits.MaxFileBytes, token);
-            using (content.ZipBytes)
+            using (content.ArchiveBytes)
             {
                 if (content.Finding.Verdict is FileVerdict.KnownThreat or FileVerdict.TestFile or FileVerdict.Error or FileVerdict.Skipped)
                     return new(content.Finding, [], 0, 0);
-                if (content.IsZip)
+                if (content.Format != ArchiveFormat.None)
                 {
                     stream.Position = 0;
                     var archive = new ArchiveScanner(this, limits);
                     var canceled = false;
-                    try { await archive.ScanAsync(stream, full, content.Finding.Sha256!, token); }
+                    try { await archive.ScanAsync(stream, full, content.Finding.Sha256!, content.Format, token); }
                     catch (OperationCanceledException) when (token.IsCancellationRequested) { canceled = true; }
                     return new(content.Finding, archive.Findings, archive.ScannedEntries, archive.BytesRead, canceled);
                 }
@@ -142,19 +142,21 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
         { return new(new(path, FileVerdict.Error, ex.Message), [], 0, 0); }
     }
-    internal sealed record ContentScan(FileFinding Finding, bool IsZip, MemoryStream? ZipBytes, bool UnsupportedArchive);
+    internal enum ArchiveFormat { None, Zip, Tar, Gzip }
+    internal sealed record ContentScan(FileFinding Finding, ArchiveFormat Format, MemoryStream? ArchiveBytes, bool UnsupportedArchive);
     internal ValueTask CheckpointAsync(CancellationToken token) => control?.CheckpointAsync(token) ?? ValueTask.CompletedTask;
-    internal async Task<ContentScan> InspectStreamAsync(Stream stream, string name, long size, long ceiling, CancellationToken token, bool captureZip = false, Action<int>? consumed = null)
+    internal ValueTask ReadCompletedAsync(int bytes, CancellationToken token) => control?.ReadCompletedAsync(bytes, token) ?? ValueTask.CompletedTask;
+    internal async Task<ContentScan> InspectStreamAsync(Stream stream, string name, long size, long ceiling, CancellationToken token, bool captureArchive = false, Action<int>? consumed = null)
     {
-        // Only scripts need a 32 KiB review prefix. Other files need at most 128 bytes
-        // for the standard test marker and archive signatures; all bytes are still hashed.
+        // Only scripts need a 32 KiB review prefix. Other files retain at most one
+        // 512-byte TAR header in the existing read buffer; all bytes are still hashed.
         var script = IsScript(name);
-        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024); var headCapacity = (int)Math.Min(script ? 32 * 1024 : 128, size);
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024); var headCapacity = (int)Math.Min(script ? 32 * 1024 : 512, size);
         var scriptHead = script ? ArrayPool<byte>.Shared.Rent(Math.Max(1, headCapacity)) : null;
         // Non-script prefixes share the end of the read buffer, outside subsequent reads.
         var head = (scriptHead ?? buffer).AsMemory(script ? 0 : buffer.Length - headCapacity, headCapacity);
         var readCapacity = script ? buffer.Length : buffer.Length - headCapacity;
-        var headCount = 0; long total = 0; MemoryStream? nested = null; var isZip = IsZipName(name);
+        var headCount = 0; long total = 0; MemoryStream? nested = null; var format = ArchiveName(name);
         try
         {
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -164,12 +166,13 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
                 var read = await stream.ReadAsync(buffer.AsMemory(0, (int)Math.Min(readCapacity, Math.Max(1, ceiling - total + 1))), token);
                 if (read == 0) break;
                 consumed?.Invoke(read); total += read;
-                if (total > ceiling) { nested?.Dispose(); return new(new(name, FileVerdict.Skipped, "Content exceeds its scan/expansion limit.", Bytes: total), false, null, false); }
+                if (total > ceiling) { nested?.Dispose(); return new(new(name, FileVerdict.Skipped, "Content exceeds its scan/expansion limit.", Bytes: total), ArchiveFormat.None, null, false); }
                 hash.AppendData(buffer, 0, read);
                 var copy = Math.Min(read, headCapacity - headCount);
                 if (copy > 0) { buffer.AsSpan(0, copy).CopyTo(head.Span[headCount..]); headCount += copy; }
-                isZip |= IsZipMagic(head.Span[..headCount]);
-                if (captureZip && isZip && size <= limits.MaxNestedArchiveBytes)
+                var magic = ArchiveMagic(head.Span[..headCount]);
+                if (magic != ArchiveFormat.None) format = magic;
+                if (captureArchive && format != ArchiveFormat.None && size <= limits.MaxNestedArchiveBytes)
                 {
                     if (nested is null)
                     {
@@ -180,7 +183,7 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
                 }
                 if (control is not null) await control.ReadCompletedAsync(read, token);
             }
-            if (total != size) { nested?.Dispose(); return new(new(name, FileVerdict.Error, "Content size changed or does not match its declared size. Rescan it.", Bytes: total), false, null, false); }
+            if (total != size) { nested?.Dispose(); return new(new(name, FileVerdict.Error, "Content size changed or does not match its declared size. Rescan it.", Bytes: total), ArchiveFormat.None, null, false); }
             var digest = Convert.ToHexString(hash.GetHashAndReset());
             var reason = ReviewSignals(name, head.Span[..headCount], script);
             var finding = IsStandardTestFile(head.Span[..headCount], total) ? new FileFinding(name, FileVerdict.TestFile, "Standard harmless antivirus test file.", digest, total)
@@ -188,12 +191,22 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
                 : new(name, reason is null ? FileVerdict.NoKnownMatch : FileVerdict.NeedsReview, reason ?? "No known hash match. This does not establish that the file is safe.", digest, total);
             if (nested is not null) nested.Position = 0;
             if (control is not null) await control.FileCompletedAsync(token);
-            return new(finding, isZip, nested, IsUnsupportedArchive(name, head.Span[..Math.Min(8, headCount)]));
+            return new(finding, format, nested, format == ArchiveFormat.None && IsUnsupportedArchive(name, head.Span[..Math.Min(8, headCount)]));
         }
         catch { nested?.Dispose(); throw; }
         finally { ArrayPool<byte>.Shared.Return(buffer, clearArray: true); if (scriptHead is not null) ArrayPool<byte>.Shared.Return(scriptHead, clearArray: true); }
     }
     internal static bool IsZipMagic(ReadOnlySpan<byte> bytes) => bytes.Length >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4b && (bytes[2] == 3 && bytes[3] == 4 || bytes[2] == 5 && bytes[3] == 6);
+    internal static ArchiveFormat ArchiveMagic(ReadOnlySpan<byte> head) => IsZipMagic(head) ? ArchiveFormat.Zip
+        : head.Length >= 2 && head[0] == 0x1f && head[1] == 0x8b ? ArchiveFormat.Gzip
+        : head.Length >= 263 && head.Slice(257, 6).SequenceEqual("ustar\0"u8) ? ArchiveFormat.Tar : ArchiveFormat.None;
+    private static ArchiveFormat ArchiveName(string name)
+    {
+        if (IsZipName(name)) return ArchiveFormat.Zip;
+        var extension = Path.GetExtension(name.AsSpan());
+        return extension.Equals(".tar", StringComparison.OrdinalIgnoreCase) ? ArchiveFormat.Tar
+            : extension.Equals(".gz", StringComparison.OrdinalIgnoreCase) || extension.Equals(".tgz", StringComparison.OrdinalIgnoreCase) ? ArchiveFormat.Gzip : ArchiveFormat.None;
+    }
     private static bool IsZipName(string name)
     {
         var extension = Path.GetExtension(name.AsSpan());
@@ -208,7 +221,6 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
     {
         var extension = Path.GetExtension(name.AsSpan());
         return extension.Equals(".7z", StringComparison.OrdinalIgnoreCase) || extension.Equals(".rar", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".tar", StringComparison.OrdinalIgnoreCase) || extension.Equals(".gz", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".bz2", StringComparison.OrdinalIgnoreCase) || extension.Equals(".xz", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".cab", StringComparison.OrdinalIgnoreCase) || extension.Equals(".iso", StringComparison.OrdinalIgnoreCase)
             || head.StartsWith(SevenZipMagic) || head.StartsWith("Rar!"u8) || head.Length >= 2 && head[0] == 0x1f && head[1] == 0x8b;

@@ -23,6 +23,30 @@ internal static class SessionTests
     }
     public static void Register(Action<string,Func<Task>> test)
     {
+        test("Feed refresh only requests recovery when effective exact-hash rules change", async () => {
+            using var tmp = new Temporary(); using var key = RSA.Create(3072); var now = DateTimeOffset.UtcNow;
+            byte[] Envelope(long sequence, params HashIndicator[] hashes)
+            {
+                var payload = JsonSerializer.SerializeToUtf8Bytes(new FeedPayload(1, sequence, now, now.AddDays(1), hashes), FeedVerifier.Json);
+                return JsonSerializer.SerializeToUtf8Bytes(new SignedFeed(1, "RSA-SHA256", Convert.ToBase64String(payload),
+                    Convert.ToBase64String(key.SignData(payload, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))), FeedVerifier.Json);
+            }
+            var a = new HashIndicator(new string('a', 64), "Harmless A", "Tests");
+            var b = new HashIndicator(new string('b', 64), "Harmless B", "Tests");
+            var response = Envelope(1, a);
+            using var http = new HttpClient(new FakeHttp(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(response) })));
+            var settings = new ProtectionSettings("https://example.com/", key.ExportSubjectPublicKeyInfoPem()); var repository = new FeedRepository(tmp.Root);
+            Check((await repository.RefreshAsync(http, settings)).HashSetChanged);
+            Check(!(await repository.RefreshAsync(http, settings)).HashSetChanged);
+            response = Envelope(2, a with { Sha256 = a.Sha256.ToUpperInvariant(), Label = "Updated label", Source = "Updated provenance" });
+            var renewal = await repository.RefreshAsync(http, settings); Check(!renewal.HashSetChanged && renewal.Feed.Payload.Sequence == 2);
+            response = Envelope(3, b); Check((await repository.RefreshAsync(http, settings)).HashSetChanged); // Same count, replaced hash.
+            response = Envelope(4, a, b); Check((await repository.RefreshAsync(http, settings)).HashSetChanged);
+            response = Envelope(5); Check((await repository.RefreshAsync(http, settings)).HashSetChanged); // Revocation.
+            response = Envelope(6); Check(!(await repository.RefreshAsync(http, settings)).HashSetChanged);
+            var committed = repository.Current; response[^1] ^= 1;
+            await Fails<InvalidDataException>(() => repository.RefreshAsync(http, settings)); Check(ReferenceEquals(repository.Current, committed));
+        });
         test("Session preferences default off and retain only explicitly saved options", () => {
             using var tmp = new Temporary(); var path=tmp.File("nested/preferences.json");
             Check(ProtectionPreferencesStore.Load(path)==new ProtectionPreferences());

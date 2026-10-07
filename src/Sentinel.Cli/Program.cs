@@ -24,7 +24,7 @@ try
             Jev uses SENTINEL_JEV_KEY in the environment, makes one opt-in provider request, and changes no firewall rules.
             Network snapshots include private local paths/addresses; Jev evidence uses fixed categories/counts only.
             Remote model credentials come from SENTINEL_AI_KEY, never command-line arguments.
-            Scans are offline. No-known-match does not mean safe. ZIP contents are scanned within strict budgets, without extraction. Unsupported/encrypted contents are incomplete.
+            Scans are offline. No-known-match does not mean safe. ZIP, V7/ustar TAR and GZIP contents are scanned within strict budgets, without extraction. Unsupported/encrypted contents are incomplete.
             Exit codes: 0 no known match, 1 command/update failure, 2 exact detections, 3 incomplete scan, 4 review findings.
             """); return 0;
     }

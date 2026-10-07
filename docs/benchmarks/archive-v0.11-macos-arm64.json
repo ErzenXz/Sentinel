@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "description": "Warmed synthetic offline core workloads. Process-wide managed allocations; excludes UI, OS protection, AI and startup. Not Windows working-set or throughput certification.",
+  "os": "macOS 27.0.1",
+  "architecture": "Arm64",
+  "dotnet": "10.0.12",
+  "files": 2500,
+  "iterations": 5,
+  "fileBytes": 8192,
+  "reportBytes": 8690421,
+  "feedIndicators": 10000,
+  "feedEnvelopeBytes": 2027452,
+  "catalogIndicators": 6113,
+  "catalogRetainedManagedBytes": 5327600,
+  "catalogMeasurement": "Managed heap delta around the first catalog load with forced collection, including serializer metadata; not process working set.",
+  "zipEntries": 1024,
+  "zipEntryBytes": 512,
+  "zipEntryCommentBytes": 128,
+  "nestedZipBytes": 8388730,
+  "results": [
+    {
+      "workload": "wide-folder-8192-byte-files",
+      "medianMilliseconds": 483.5671,
+      "allocatedBytesMedian": 17508816
+    },
+    {
+      "workload": "save-and-load-2000-long-evidence-findings",
+      "medianMilliseconds": 26.9948,
+      "allocatedBytesMedian": 17263976
+    },
+    {
+      "workload": "refresh-unchanged-signed-indicators",
+      "medianMilliseconds": 19.6715,
+      "allocatedBytesMedian": 10130024
+    },
+    {
+      "workload": "zip-1024-small-entries-with-comments",
+      "medianMilliseconds": 17.8437,
+      "allocatedBytesMedian": 1755784
+    },
+    {
+      "workload": "zip-8mib-nested-container-at-depth-limit",
+      "medianMilliseconds": 36.7104,
+      "allocatedBytesMedian": 123712
+    }
+  ]
+}

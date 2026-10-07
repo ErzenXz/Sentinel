@@ -120,13 +120,13 @@ internal static class ScanPerformanceTests
             var result = await new FileScanner(control: new(ScanMode.LowImpact)).ScanFileAsync(path);
             Check(result.Bytes == bytes.Length && result.Sha256 == Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)));
         });
-        test("Unsupported archive signatures remain incomplete without filename extensions", async () => {
+        test("Unsupported and corrupt archive signatures remain incomplete without filename extensions", async () => {
             using var tmp = new Temporary();
             byte[][] signatures = [[0x37,0x7a,0xbc,0xaf,0x27,0x1c], [0x1f,0x8b,0,0], Encoding.ASCII.GetBytes("Rar!")];
             for (var i = 0; i < signatures.Length; i++) {
                 var path = tmp.File($"archive-{i}.bin"); await System.IO.File.WriteAllBytesAsync(path, signatures[i]);
                 var result = await new FileScanner().ScanFileDetailedAsync(path);
-                Check(result.ArchiveFindings.Single().Verdict == FileVerdict.Skipped);
+                Check(result.ArchiveFindings.Single().Verdict == (i == 1 ? FileVerdict.Error : FileVerdict.Skipped));
             }
         });
         test("Streamed reports retain long evidence, scan mode and traversal metrics", async () => {

@@ -2,16 +2,19 @@
 
 MIT-licensed native Windows security application, with an independent local scanner, self-hostable intelligence server, Windows protection controls, and optional AI explanations.
 
-**v0.10.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
+**v0.11.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
 
-## New in v0.10.0
+## New in v0.11.0
 
-- **Scan a selected file again:** recheck current bytes with the current threat list and selected scan speed, including the whole archive for contained findings. Fresh results replace the view and are saved in Scan history.
-- **Lower feed-refresh allocations:** received envelopes stay in their original buffer; base64 is decoded directly from UTF-8; indicator validation shares its lookup index; cached envelopes are compared in bounded chunks. Signature, expiry, sequence and indicator validation remain required.
-- **Less disk work on unchanged feeds:** identical signed envelopes are verified again and compared completely, then retained without rewriting or flushing the cache/sequence files.
-- **Windows resource investigation:** fresh/default/software/hidden windows and post-verification runtime threads are measured separately. Warmup and synthetic fixture samples are kept distinct from ordinary hardware and whole-antivirus benchmarks.
+- **More archive coverage:** inspect regular V7/ustar TAR entries, GZIP payloads, TGZ and mixed nested ZIP/TAR/GZIP trees within shared budgets, without extraction. Unsupported extensions, corrupt integrity, unsafe names and limits remain visible as incomplete coverage.
+- **Less archive allocation:** nested containers at the depth limit keep their complete hash check without an unused in-memory copy. ZIP preflight reuses bounded name/header scratch space and retains compact value records.
+- **Fewer background reads:** automatic and manual signed-feed checks only queue a watched-folder recovery when exact-hash rules are added, replaced or revoked. Identical publications and renewals of expiry, sequence, labels or source text still verify and update trusted state.
 
-[Download v0.10.0](https://github.com/ErzenXz/Sentinel/releases/tag/v0.10.0) · [Release notes](docs/RELEASE-0.10.0.md) · [Performance measurements](docs/PERFORMANCE.md) · [Native Windows screenshots](docs/NATIVE-UI-VERIFICATION.md)
+[Download v0.11.0](https://github.com/ErzenXz/Sentinel/releases/tag/v0.11.0) · [Release notes](docs/RELEASE-0.11.0.md) · [Performance measurements](docs/PERFORMANCE.md) · [Native Windows screenshots](docs/NATIVE-UI-VERIFICATION.md)
+
+## Included from v0.10.0
+
+Selected-file rescans read current bytes with current intelligence and save history. Signed-feed decoding, indexing and cache comparison reduce temporary allocation; identical envelopes retain their signature/expiry/rollback checks without rewriting cache files. Native resource profiling distinguishes runtime warmup from ordinary hardware measurements.
 
 ## Included from v0.9.0
 
@@ -25,7 +28,7 @@ MIT-licensed native Windows security application, with an independent local scan
 ## Included from v0.8.0
 
 - **Monitoring covers existing files:** starting or resuming a selected folder now runs a Low impact scan while incoming changes stay queued.
-- **Recovery after folder moves and missed changes:** directory-name notifications, watcher overflow, full file queues, successful signed-feed updates and the new Recheck watched folder button request a bounded rescan. Requests coalesce; one worker handles file changes and recovery, with a 30-second cooldown between rechecks.
+- **Recovery after folder moves and missed changes:** directory-name notifications, watcher overflow, full file queues, changes to signed exact-hash rules and the new Recheck watched folder button request a bounded rescan. Requests coalesce; one worker handles file changes and recovery, with a 30-second cooldown between rechecks.
 - **Background work has a time budget:** recovery stops cooperatively after five minutes and retains completed findings. File/archive/count/depth limits and excluded Sentinel storage stay explicit. Live monitoring continues after a recovery deadline. Permanent watcher failures mark monitoring stopped and ask you to restart it.
 - **Bounded, batched live findings:** a 512-item worker-to-UI inbox replaces per-finding dispatcher callbacks. Up to 128 findings reach the interface every 200 ms; duplicate pending evidence collapses and exact detections take priority. Omitted findings are counted, and the 2,000-row display cannot replace exact detections with review findings.
 - **Live monitoring details:** changed-file counts, queued paths, missed events, omitted display findings and the last recovery's counts/limits update while the page is open. Notifications batch counts only.
@@ -74,7 +77,7 @@ See [session preferences](docs/SESSION-PROTECTION.md). All new background option
 
 ## Included from v0.3
 
-- **Bounded ZIP content scanning**, including nested archives and ZIP-based documents/packages. No files are extracted to disk. Encryption, unsupported formats, malformed metadata, corrupt CRCs, and budget limits remain explicit incomplete results.
+- **Bounded ZIP/TAR/GZIP content scanning**, including nested archives and ZIP-based documents/packages. No files are extracted to disk. Encryption, unsupported formats, malformed metadata, corrupt CRCs, and budget limits remain explicit incomplete results.
 - **Whole-archive quarantine** after user confirmation, a fresh contained detection, and a matching container hash. The encrypted backup restores the entire original archive.
 - **Scan reports** page with import/export, automatic retention of the latest 30 manual/scheduled reports, and partial results when a running scan is canceled. File and archive-entry counts are separate.
 - **Stronger folder monitoring**: rewrites during a scan are queued again, settled bursts avoid a delay for every file, own storage is excluded before reads, and queue/missed-event counters are visible.
@@ -87,11 +90,11 @@ Existing capabilities include Defender quick/full/custom scans and intelligence 
 
 ## Run on Windows
 
-Extract **all files** from the appropriate v0.10.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
+Extract **all files** from the appropriate v0.11.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
 
 Open **File scanner** to scan a file/folder immediately using the bundled public indicator snapshot. Open **Quarantine** to review backups. Use a standard Windows user session for independent file remediation and AI. Windows Firewall/Defender operations can require Settings → About Sentinel & administrator tools → Restart as administrator. AI and personal-file quarantine/restore are disabled in elevated sessions.
 
-Our scanner reports no-known-match, review, detected, skipped, and error separately. A no-known-match result does not prove safety. ZIP contents are inspected within strict budgets; encrypted, unsupported, over-budget or unreadable contents remain incomplete. Monitoring observes changes after they happen and stops when you exit Sentinel; opt-in tray mode keeps it running after closing the window. Defender continues its own background protection.
+Our scanner reports no-known-match, review, detected, skipped, and error separately. A no-known-match result does not prove safety. ZIP, V7/ustar TAR and GZIP contents are inspected within strict budgets; encrypted, unsupported, over-budget or unreadable contents remain incomplete. Monitoring observes changes after they happen and stops when you exit Sentinel; opt-in tray mode keeps it running after closing the window. Defender continues its own background protection.
 
 ## Run your own server
 
@@ -126,6 +129,6 @@ No Electron, embedded browser, telemetry, or bundled LLM. The own scanner uses o
 
 A hash list detects exact published files and misses changed/new malware. We do not yet have kernel-enforced execution blocking, broad archive-format coverage, ransomware behavioral blocking, a protected service, or AV certification. These require sustained engineering and independent evaluation.
 
-Read [v0.10.0 release notes](docs/RELEASE-0.10.0.md), [performance measurements](docs/PERFORMANCE.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
+Read [v0.11.0 release notes](docs/RELEASE-0.11.0.md), [performance measurements](docs/PERFORMANCE.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
 
 Sentinel code is MIT licensed. Embedded ESET indicator data remains BSD two-clause licensed; ESET does not endorse Sentinel. No OpenClaw source code or third-party malware binaries are bundled.

@@ -60,6 +60,8 @@ for rid, machine in [("win-x64", 0x8664), ("win-arm64", 0xAA64)]:
                 runtime = json.loads(z.read(assembly + ".runtimeconfig.json"))["runtimeOptions"]
                 if "includedFrameworks" not in runtime:
                     raise RuntimeError("Expected a self-contained runtime")
+                if runtime.get("configProperties", {}).get("System.IO.Compression.UseStrictValidation") is not True:
+                    raise RuntimeError("Strict compression validation must be enabled")
                 if f"{assembly}/{version}" not in json.loads(z.read(assembly + ".deps.json"))["libraries"]:
                     raise RuntimeError("Packaged dependency version mismatch")
             for name in ["LICENSE", "README.md"]:
@@ -78,6 +80,8 @@ for rid, machine in [("win-x64", 0x8664), ("win-arm64", 0xAA64)]:
         runtime = json.loads((folder / (assembly + ".runtimeconfig.json")).read_text())["runtimeOptions"]
         if "includedFrameworks" not in runtime:
             raise RuntimeError("Expected a self-contained runtime")
+        if runtime.get("configProperties", {}).get("System.IO.Compression.UseStrictValidation") is not True:
+            raise RuntimeError("Strict compression validation must be enabled")
         deps = json.loads((folder / (assembly + ".deps.json")).read_text())["libraries"]
         if f"{assembly}/{version}" not in deps:
             raise RuntimeError("Packaged dependency version mismatch")
@@ -91,7 +95,7 @@ for rid, machine in [("win-x64", 0x8664), ("win-arm64", 0xAA64)]:
     archive(f"Sentinel-{version}-{rid}.zip", [(p, p.relative_to(folder).as_posix()) for p in folder.rglob("*") if p.is_file()])
 
 source = []
-for name in ["README.md", "LICENSE", "Directory.Build.props", ".gitignore", ".gitattributes"]:
+for name in ["README.md", "LICENSE", "Directory.Build.props", "Directory.Build.targets", ".gitignore", ".gitattributes"]:
     if (root / name).is_file():
         source.append((root / name, "Sentinel/" + name))
 for name in ["src", "tests", "docs", "scripts", ".github"]:

@@ -3,6 +3,8 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
+using System.Formats.Tar;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -254,6 +256,7 @@ internal static partial class Program
         Theme.Apply(); window.UpdateLayout(); await Drain();
 
         Stage("Checking selected file rescan"); await VerifySelectedRescan(window, profile);
+        Stage("Checking streamed archive results"); await VerifyStreamArchives(window, profile);
         Stage("Checking local scan controls"); await VerifyScanControls(window, profile);
         Stage("Checking scanner view retention"); await VerifyRetention(window);
         await Navigate(window, "Home");
@@ -295,6 +298,28 @@ internal static partial class Program
             && Field<ObservableCollection<FileFinding>>(window, "engineFindings").Count == 0);
         var saved = ScanReports.Latest(Path.Combine(profile, "reports"));
         Check("Selected rescan saves current results in history", saved?.StartedAt == report.StartedAt && saved.BytesRead == report.BytesRead);
+    }
+    private static async Task VerifyStreamArchives(MainWindow window, string profile)
+    {
+        var path = Path.Combine(profile, "harmless-review.tgz");
+        using (var output = File.Create(path))
+        using (var gzip = new GZipStream(output, CompressionLevel.NoCompression))
+        using (var tar = new TarWriter(gzip, TarEntryFormat.Ustar, leaveOpen: true))
+        using (var content = new MemoryStream("Harmless archive filename review fixture"u8.ToArray()))
+            tar.WriteEntry(new UstarTarEntry(TarEntryType.RegularFile, "document.pdf.exe") { DataStream = content });
+        InvokePrivate(window, "StartEngineScan", path);
+        await Until(() => !Field<bool>(window, "busy"), "TAR/GZIP UI scan did not finish");
+        var report = Field<ScanReport>(window, "lastScan");
+        Check("Native scanner shows contained TGZ review with shared counters and outer identity", !report.Incomplete
+            && report.Scanned == 1 && report.ArchiveEntries == 2 && report.Review == 1 && report.Detected == 0
+            && report.Findings.Single().Path == path && report.Findings.Single().ArchiveEntry == "harmless-review.tar → document.pdf.exe");
+        var table = Descendants<DataGrid>(Field<StackPanel>(window, "PageBody")).First();
+        table.SelectedIndex = 0; await Drain();
+        Check("Contained review remains selectable and cannot authorize quarantine", FindButton(window, "Scan file again").IsEnabled
+            && !FindButton(window, "Quarantine selected…").IsEnabled);
+        var saved = ScanReports.Latest(Path.Combine(profile, "reports"));
+        Check("Native archive scan saves complete contained evidence in history", saved?.StartedAt == report.StartedAt
+            && saved.Findings.Single().ArchiveEntry == report.Findings.Single().ArchiveEntry);
     }
     private static async Task Expand(MainWindow window, string title)
     {

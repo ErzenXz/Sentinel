@@ -132,6 +132,7 @@ Test("Codex policy must be explicitly confirmed", () => {
 ProtectionTests.Register(Test);
 ScanPerformanceTests.Register(Test);
 ArchiveTests.Register(Test);
+StreamArchiveTests.Register(Test);
 SessionTests.Register(Test);
 MonitorTests.Register(Test);
 ModelDiscoveryTests.Register(Test);

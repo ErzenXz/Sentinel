@@ -72,7 +72,7 @@ public partial class MainWindow
         actions.Margin = new Thickness(0);
         var feedChip = FeedChip(); feedChip.VerticalAlignment = VerticalAlignment.Top; feedChip.Margin = new Thickness(16, 8, 0, 0); Grid.SetColumn(feedChip, 1);
         toolbar.Children.Add(actions); toolbar.Children.Add(feedChip); top.Children.Add(toolbar);
-        top.Children.Add(Note("Checks files against known threat hashes on this PC. ZIP contents are checked within limits. New or changed threats can have no match."));
+        top.Children.Add(Note("Checks files against known threat hashes on this PC. ZIP, TAR and GZIP contents are checked within limits. New or changed threats can have no match."));
         top.Children.Add(Note(FeedStatusNote(), FeedNeedsAttention ? "Warning" : "Muted"));
         var speed = new ComboBox { ItemsSource = new[] { "Balanced", "Low impact" }, SelectedIndex = (int)scanMode, Width = 155 };
         Named(speed, "Speed for the next Sentinel scan");
@@ -129,7 +129,7 @@ public partial class MainWindow
             Details(body, "Scan timing & coverage", Note($"{timing.StartedAt.ToLocalTime():g} · {timing.Duration.TotalSeconds:F1}s · {(timing.Mode == ScanMode.LowImpact ? "Low impact" : "Balanced")} · {timing.ArchiveEntries:N0} archive entries · {timing.BytesRead / 1024 / 1024:N0} MB read · {timing.ArchiveBytesRead / 1024 / 1024:N0} MB expanded · {timing.PeakPendingDirectories} pending directory levels", null));
         var limits = AdvancedCard("Threat list & scanner limits");
         limits.Children.Add(Text(FeedDescription(), 12, true));
-        limits.Children.Add(Note("Checks SHA-256 locally; no AI request is made. Limits: 256 MB per file, 50,000 filesystem entries, 2,000 displayed findings. ZIP: 2,048 entries per tree, 32 MB per entry, 128 MB expanded, 200:1 ratio, two nested levels. Unreadable, skipped and over-budget items remain incomplete. Review patterns are not known malware."));
+        limits.Children.Add(Note("Checks SHA-256 locally; no AI request is made. Limits: 256 MB per file, 50,000 filesystem entries, 2,000 displayed findings. Archives: 2,048 entries per tree, 32 MB per entry, 128 MB expanded, 200:1 ratio, two nested levels. TAR supports regular V7/ustar entries; PAX/GNU/sparse formats remain incomplete. Unreadable, skipped and over-budget items remain incomplete. Review patterns are not known malware."));
         var watch = AdvancedCard(monitor?.IsRunning == true ? "Folder monitoring · running" : "Folder monitoring · off");
         watch.Children.Add(Text("Checks existing files when you start, then new and changed files after writes settle. Folder moves and missed changes queue a recovery scan with a five-minute budget. Uses Low impact mode and excludes Sentinel storage. Gaps and limits stay visible. Monitoring stops when you exit; it cannot block execution before a scan. Nothing is removed automatically.", 13));
         var monitorStatus = Text(MonitorDescription(), 12, true);
@@ -205,7 +205,9 @@ public partial class MainWindow
             } catch (Exception ex) { StatusText = ex.Message; }
         }), Button("Update signed feed", () => _ = Run("Update Sentinel threat feed", async token => {
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromMinutes(2));
-            await feeds.UpdateAsync(http, protection, deadline.Token); engineError = null; monitor?.RequestRecovery(); if (page is "Sentinel engine" or "Overview" or "Settings") ShowPage(page);
+            var refresh = await feeds.RefreshAsync(http, protection, deadline.Token); engineError = null;
+            if (refresh.HashSetChanged) monitor?.RequestRecovery();
+            if (page is "Sentinel engine" or "Overview" or "Settings") ShowPage(page);
         }, audit: true))));
         feed.Children.Add(Note("Updates reject wrong signatures, expired lists, rollback, and changed content under an existing sequence. A failed update retains the last verified list. An expired cache still matches previously known hashes and is clearly marked stale."));
     }

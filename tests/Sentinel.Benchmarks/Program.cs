@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Net;
 using System.Security.Cryptography;
+using System.IO.Compression;
 using System.Text.Json;
 using Sentinel.Core.Protection;
 
@@ -72,6 +73,42 @@ try
         var refreshed = await repository.UpdateAsync(feedHttp, settings);
         if (refreshed.Hashes.Count != feedIndicators || refreshed.Payload.Sequence != 1) throw new InvalidDataException("Feed refresh mismatch.");
     });
+    // Existing ZIP coverage workloads. Fixture creation is outside measurement,
+    // so both old and new cores use these exact bytes and assertions.
+    var smallZipPath = Path.Combine(root, "many-entries.zip");
+    using (var output = File.Create(smallZipPath))
+    using (var zip = new ZipArchive(output, ZipArchiveMode.Create))
+        for (var i = 0; i < 1024; i++)
+        {
+            var entry = zip.CreateEntry($"folder/subfolder/entry-{i:D4}.bin", CompressionLevel.NoCompression);
+            entry.Comment = new string('c', 128);
+            using var bytes = entry.Open(); bytes.Write(content.AsSpan(0, 512));
+        }
+    var innerPath = Path.Combine(root, "inner.zip");
+    using (var output = File.Create(innerPath))
+    using (var zip = new ZipArchive(output, ZipArchiveMode.Create))
+    {
+        using var bytes = zip.CreateEntry("ordinary.bin", CompressionLevel.NoCompression).Open();
+        for (var i = 0; i < 1024; i++) bytes.Write(content);
+    }
+    var depthZipPath = Path.Combine(root, "depth-limit.zip");
+    using (var output = File.Create(depthZipPath))
+    using (var zip = new ZipArchive(output, ZipArchiveMode.Create))
+    using (var bytes = zip.CreateEntry("inner.zip", CompressionLevel.NoCompression).Open())
+    using (var input = File.OpenRead(innerPath)) input.CopyTo(bytes);
+    var depthScanner = new FileScanner(catalog, new(MaxArchiveDepth: 0));
+    await scanner.ScanPathAsync(smallZipPath); await depthScanner.ScanPathAsync(depthZipPath);
+    var manyEntries = await Measure("zip-1024-small-entries-with-comments", async () => {
+        var result = await scanner.ScanPathAsync(smallZipPath);
+        if (result.Incomplete || result.Detected != 0 || result.ArchiveEntries != 1024 || result.ArchiveBytesRead != 1024 * 512)
+            throw new InvalidDataException("ZIP benchmark coverage mismatch.");
+    });
+    var depthLimit = await Measure("zip-8mib-nested-container-at-depth-limit", async () => {
+        var result = await depthScanner.ScanPathAsync(depthZipPath);
+        if (!result.Incomplete || result.Detected != 0 || result.ArchiveEntries != 1 || result.Skipped != 1
+            || result.ArchiveBytesRead != new FileInfo(innerPath).Length)
+            throw new InvalidDataException("Depth-limit benchmark coverage mismatch.");
+    });
     Console.WriteLine(JsonSerializer.Serialize(new {
         schemaVersion = 1,
         description = "Warmed synthetic offline core workloads. Process-wide managed allocations; excludes UI, OS protection, AI and startup. Not Windows working-set or throughput certification.",
@@ -81,7 +118,8 @@ try
         feedIndicators, feedEnvelopeBytes = envelope.Length,
         catalogIndicators = catalog.Hashes.Count, catalogRetainedManagedBytes,
         catalogMeasurement = "Managed heap delta around the first catalog load with forced collection, including serializer metadata; not process working set.",
-        results = new[] { scan, reports, feedRefresh }
+        zipEntries = 1024, zipEntryBytes = 512, zipEntryCommentBytes = 128, nestedZipBytes = new FileInfo(innerPath).Length,
+        results = new[] { scan, reports, feedRefresh, manyEntries, depthLimit }
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
 finally { Directory.Delete(root, recursive: true); }

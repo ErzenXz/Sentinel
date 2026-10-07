@@ -105,6 +105,20 @@ internal static class ArchiveTests
             await System.IO.File.WriteAllBytesAsync(path, bytes); Check((await new FileScanner().ScanPathAsync(path)).Incomplete);
             bytes = Zip(("one.bin", [1])); bytes[0] = 0; await System.IO.File.WriteAllBytesAsync(path, bytes); Check((await new FileScanner().ScanPathAsync(path)).Skipped == 1);
         });
+        test("ZIP reused preflight scratch handles maximal comments and still rejects different local names", async () => {
+            using var tmp = new Temporary(); var path = tmp.File("metadata.zip");
+            using var memory = new MemoryStream();
+            using (var zip = new ZipArchive(memory, ZipArchiveMode.Create, true))
+            {
+                zip.Comment = new string('z', ushort.MaxValue);
+                var entry = zip.CreateEntry("folder/ordinary.bin", CompressionLevel.NoCompression); entry.Comment = new string('c', ushort.MaxValue);
+                using var content = entry.Open(); content.Write([1, 2, 3]);
+            }
+            var bytes = memory.ToArray(); await System.IO.File.WriteAllBytesAsync(path, bytes);
+            var valid = await new FileScanner().ScanPathAsync(path); Check(!valid.Incomplete && valid.ArchiveEntries == 1 && valid.ArchiveBytesRead == 3);
+            bytes[30] ^= 1; await System.IO.File.WriteAllBytesAsync(path, bytes);
+            var invalid = await new FileScanner().ScanPathAsync(path); Check(invalid.Incomplete && invalid.ArchiveEntries == 0 && invalid.Skipped == 1);
+        });
         test("ZIP entry, expansion, entry-count, ratio and depth budgets remain incomplete", async () => {
             using var tmp = new Temporary(); var path = tmp.File("bounded.zip"); var bytes = Zip(("first", new byte[64]), ("second", new byte[64]));
             foreach (var limits in new[] { new ScanLimits(MaxArchiveEntryBytes:32), new ScanLimits(MaxArchiveExpandedBytes:64), new ScanLimits(MaxArchiveEntries:1) })

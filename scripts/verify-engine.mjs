@@ -4,6 +4,7 @@ import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { gzipSync, constants } from 'node:zlib';
 import { ThreatStore, DEMO_TEXT } from '../server/store.mjs';
 import { createThreatServer } from '../server/http.mjs';
 
@@ -42,6 +43,13 @@ function zipFixture(name, data) {
  const end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+fileName.length,12);end.writeUInt32LE(local.length+fileName.length+data.length,16);
  return Buffer.concat([local,fileName,data,central,fileName,end]);
 }
+function tarFixture(name, data) {
+ const header=Buffer.alloc(512);header.write(name);header.write('0000644\0',100);header.write('0000000\0',108);header.write('0000000\0',116);
+ header.write(data.length.toString(8).padStart(11,'0')+'\0',124);header.write('00000000000\0',136);header.fill(32,148,156);header[156]=48;
+ header.write('ustar\0',257);header.write('00',263);
+ const sum=header.reduce((total,value)=>total+value,0);header.write(sum.toString(8).padStart(6,'0')+'\0 ',148);
+ return Buffer.concat([header,data,Buffer.alloc((512-data.length%512)%512),Buffer.alloc(1024)]);
+}
 try {
  const state=join(temporary,'client');const key=store.path('public.pem');
  const update=await run(['update','--server',base,'--key',key,'--state',state]);assert.equal(update.code,0,update.error);
@@ -62,6 +70,19 @@ try {
  assert.equal(archiveReport.archiveEntries,1);assert.equal(archiveReport.findings[0].archiveEntry,'inside/fixture.txt');assert.equal(archiveReport.findings[0].path,archive);
  assert.deepEqual(JSON.parse(archiveScan.out),archiveReport);
  console.log('PASS: ZIP-contained feed detection and atomic report export through the actual CLI');
+ const tar=tarFixture('inside/fixture.txt',Buffer.from(DEMO_TEXT));
+ for(const [name,data,expected,count] of [
+  ['harmless.tar',tar,'inside/fixture.txt',1],
+  ['harmless.txt.gz',gzipSync(Buffer.from(DEMO_TEXT),{level:constants.Z_NO_COMPRESSION}),'harmless.txt',1],
+  ['harmless.tgz',gzipSync(tar,{level:constants.Z_NO_COMPRESSION}),'harmless.tar → inside/fixture.txt',2]
+ ]) {
+  const path=join(temporary,name);writeFileSync(path,data);
+  const result=await run(['scan',path,'--feed',join(state,'feed.json'),'--key',key,'--low-impact']);
+  assert.equal(result.code,2,result.error);const report=JSON.parse(result.out);
+  assert.equal(report.detected,1);assert.equal(report.skipped,0);assert.equal(report.errors,0);assert.equal(report.archiveEntries,count);
+  assert.equal(report.findings[0].archiveEntry,expected);assert.equal(report.findings[0].path,path);assert.match(report.findings[0].containerSha256,/^[A-F0-9]{64}$/);
+ }
+ console.log('PASS: Node-created TAR/GZIP/TGZ exact detections through the actual low-impact CLI without extraction');
  const offlineProfile=join(temporary,'offline-profile');const ordinary=join(temporary,'ordinary.txt');writeFileSync(ordinary,'ordinary offline profile fixture');
  const offline=await run(['scan',ordinary,'--profile',offlineProfile,'--low-impact']);assert.equal(offline.code,0,offline.error);
  assert.equal(JSON.parse(offline.out).mode,'LowImpact');assert.equal(JSON.parse(offline.out).peakPendingDirectories,0);

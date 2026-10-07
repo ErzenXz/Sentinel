@@ -1,3 +1,11 @@
+# Development verification — 2026-10-07, v0.11.0
+
+Local verification covers V7/ustar TAR, GZIP/TGZ and mixed trees, exact harmless hashes, no extraction, header/CRC integrity, truncated content, every GZIP truncation point, varied trailing bytes, metadata/name validation, links/special files/extensions, shared budgets, maximal ZIP comments/local-name mismatches, whole-container confirmation and committed hash-set changes. A deterministic 600-mutation corpus stays within configured budgets. The actual Node server/CLI integration now includes Node-created TAR/GZIP/TGZ and low-impact contained detection in addition to existing feed, report, provider and Jev boundaries. No paid inference, user credentials or malware samples are involved.
+
+Windows CI and benchmark outcomes are recorded below once completed. Tagged publication requires native x64 WPF verification, both Windows architecture build/test/package jobs and strict-compression/runtime/version/integrity checks. Hardware/ARM64 execution, OS enforcement, signing, independent detection evaluation and parser audit remain open.
+
+## Previous v0.10 verification
+
 # Development verification — 2026-10-07, v0.10.0
 
 - **131/131 core tests** and **13/13 server tests** pass locally and in both Windows architecture build/package jobs for candidate `903b2ee`. New coverage includes complete multi-chunk/equal-sequence cache comparison, unchanged cache timestamps, oversized declared/cached envelopes, canceled refreshes, malformed/missing UTF-8 base64 and reordered/case-insensitive fields with escaped encodings. Additional cases retain active signed-payload identity after cache loss and require a newer sequence after restart without clearing rollback state. A legacy settled-event monitor test now awaits initial coverage instead of racing its fixture write against recovery. Existing signature/rollback/expiry/detection/archive/vault/monitor/AI boundaries remain covered.

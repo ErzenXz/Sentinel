@@ -122,10 +122,12 @@ public partial class MainWindow
         var settings = protection; var generation = ++updaterGeneration;
         feedUpdates = new(async token => {
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromMinutes(2));
-            await feeds.UpdateAsync(http, settings, deadline.Token);
+            var refresh = await feeds.RefreshAsync(http, settings, deadline.Token);
+            if (refresh.HashSetChanged) PostEngine(() => {
+                if (!lifetime.IsCancellationRequested && generation == updaterGeneration) monitor?.RequestRecovery();
+            });
         }, state => PostEngine(() => {
             if (lifetime.IsCancellationRequested || generation != updaterGeneration) return;
-            if (state.NextAttempt is not null && !state.Failed) monitor?.RequestRecovery();
             if (!busy && state.NextAttempt is not null)
                 StatusText = state.Failed ? "Automatic feed check failed. The verified cache remains available; check the server and retry manually." : "Signed feed checked. Next automatic check in six hours.";
         }));

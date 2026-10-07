@@ -1,6 +1,6 @@
 # Roadmap
 
-## Delivered through v0.10
+## Delivered through v0.11
 
 Native Windows UI; independent hash scanning with a bundled public IOC snapshot; self-hostable signed feeds; ESET refresh and optional MalwareBazaar metadata import; conservative review patterns; chunked authenticated quarantine/restore; best-effort folder monitoring; scheduled offline scans; CLI; Defender/Firewall controls; configurable AI explanations; bounded ZIP/nested scanning, whole-container confirmation, retained/importable scan reports and partial cancellation, generation-aware monitoring, schedule status, source refresh health, and security-focused portable/server/interoperability tests. v0.4 adds opt-in tray persistence, count-only notifications, folder resume, six-hour signed-feed checks, finding/history filters, model metadata discovery, high-contrast resources and session/shutdown coordination. v0.5 adds bounded one-shot TCP/profile/process capture, deterministic firewall review, selected-only publisher inspection with identity revalidation, optional Jev typed decisions, a bounded single-flight review cache, native C# hosting informed by fx research, and CLI review/benchmark commands.
 
@@ -13,6 +13,8 @@ v0.8 adds initial monitored-folder coverage, coalesced directory/overflow/feed r
 v0.9 adds native x64 WPF fixture rendering/interaction gates, both inspector arrangements, a verified scanner-page retention fix, explicit table selection and inherited action text colors. Hardware DPI/text scaling, Narrator, OS protection actions and native ARM64 execution remain acceptance work.
 
 v0.10 adds selected-file rescans with current evidence/history, direct UTF-8 feed decoding, shared validation indexes, bounded cache comparison, unchanged-feed checks without cache writes, active payload identity and recovery without weakening rollback state, and native Windows process/thread resource profiling. Feed signature, expiry and anti-rollback checks remain required.
+
+v0.11 adds bounded streaming V7/ustar TAR and GZIP/TGZ inspection, mixed archive trees, strict compressed-stream validation and trailing-input checks, shared budgets, depth-limit copy removal, compact ZIP preflight state, and feed-change-driven recovery. PAX/GNU/sparse TAR extensions and other unsupported formats remain explicit gaps.
 
 ## Next release gates
 

@@ -100,3 +100,16 @@ In the final Windows run, the original three-second post-verification sample con
 Production keeps the runtime default. Disabling tiered compilation changes startup/optimization tradeoffs, so the diagnostic process is not a shipped CPU or RAM improvement. Fresh default-rendering first-phase CPU was 343.75 ms / five seconds in this run, then 15.625 ms after the capture burst; new/exited threads and CPU counter quantization can leave thread deltas unattributed. These measurements do not establish ordinary hardware startup/idle requirements, whole-process memory savings, detection performance or antivirus rankings. They exclude production PowerShell status reads, Defender, active monitoring, AI and driver work.
 
 [Fresh default raw report](benchmarks/resource-v0.10-default-fresh-windows-x64.json) · [Fresh software](benchmarks/resource-v0.10-software-fresh-windows-x64.json) · [After verification](benchmarks/resource-v0.10-software-after-verification-windows-x64.json) · [Diagnostic tiered-compilation-off process](benchmarks/resource-v0.10-software-without-tiered-compilation-windows-x64.json)
+
+## v0.11 archive allocations
+
+The same warmed harness compares v0.10 and v0.11 sequentially in the same output directory, with signing/archive creation outside measurement and five forced-collection iterations per workload. Existing ordinary folder/report/unchanged-feed workloads remain included. New ZIP workloads assert identical complete entry/byte counts, no detections and the same explicit depth-limit gap; both versions inspect the full nested-container hash. The many-entry archive has 1,024 × 512-byte files with 128-byte entry comments. The depth-limited archive contains an 8 MiB stored nested ZIP at `MaxArchiveDepth: 0`.
+
+| macOS ARM64 workload | v0.10 allocated bytes | v0.11 allocated bytes | Reduction |
+| --- | ---: | ---: | ---: |
+| ZIP, 1,024 small entries | 2,337,256 | 1,755,784 | 24.9% |
+| 8 MiB nested ZIP at depth limit | 8,578,192 | 123,712 | 98.6% |
+
+The first change comes from reused preflight scratch, compact value headers and span-based name checks; the second removes an 8 MiB copy that cannot be expanded at the configured depth. Buffers retained by the runtime pool, peak/retained heap and working set are not measured. A 98.6% allocation reduction for this workload is not a 98.6% reduction in app RAM. Folder/report/feed allocation differences are small; elapsed times are not general throughput claims. Windows results will be recorded after the paired run.
+
+[Mac baseline](benchmarks/archive-baseline-v0.10-macos-arm64.json) · [Mac candidate](benchmarks/archive-v0.11-macos-arm64.json)

@@ -1,11 +1,12 @@
 using System.Buffers.Binary;
+using System.Buffers;
 using System.IO.Compression;
 
 namespace Sentinel.Core.Protection;
 
 // ZIP content is read from streams only. No archive name is ever used to create a file.
 // Preflight bounds the central directory before ZipArchive allocates its entry collection.
-internal sealed class ArchiveScanner(FileScanner scanner, ScanLimits limits)
+internal sealed partial class ArchiveScanner(FileScanner scanner, ScanLimits limits)
 {
     public List<FileFinding> Findings { get; } = [];
     public int ScannedEntries { get; private set; }
@@ -13,12 +14,19 @@ internal sealed class ArchiveScanner(FileScanner scanner, ScanLimits limits)
     private int visited;
     private string container = "";
     private string containerHash = "";
-    private sealed record Header(ushort Flags, ushort Method, uint Crc, uint Compressed, uint Expanded, uint Attributes);
-    public async Task ScanAsync(Stream stream, string path, string hash, CancellationToken token)
+    private readonly record struct Header(ushort Flags, ushort Method, uint Crc, uint Compressed, uint Expanded, uint Attributes);
+    public async Task ScanAsync(Stream stream, string path, string hash, FileScanner.ArchiveFormat format, CancellationToken token)
     {
         container = path; containerHash = hash;
-        await ReadZip(stream, "", 0, token);
+        await ReadArchive(stream, format, path, "", 0, token);
     }
+    private Task ReadArchive(Stream stream, FileScanner.ArchiveFormat format, string sourceName, string prefix, int depth, CancellationToken token)
+        => format switch {
+            FileScanner.ArchiveFormat.Zip => ReadZip(stream, prefix, depth, token),
+            FileScanner.ArchiveFormat.Tar => ReadTar(stream, prefix, depth, token),
+            FileScanner.ArchiveFormat.Gzip => ReadGzip(stream, sourceName, prefix, depth, token),
+            _ => throw new ArgumentOutOfRangeException(nameof(format))
+        };
     private void Notice(string? entry, FileVerdict verdict, string reason) => Findings.Add(new(container, verdict, reason, ArchiveEntry: string.IsNullOrEmpty(entry) ? null : entry, ContainerSha256: containerHash));
     private async Task ReadZip(Stream stream, string prefix, int depth, CancellationToken token)
     {
@@ -53,23 +61,15 @@ internal sealed class ArchiveScanner(FileScanner scanner, ScanLimits limits)
                     using var checkedInput = new CrcStream(input);
                     var result = await scanner.InspectStreamAsync(checkedInput, entry.FullName, entry.Length,
                         Math.Min(limits.MaxArchiveEntryBytes, limits.MaxArchiveExpandedBytes - BytesRead), token,
-                        captureZip: true, consumed: n => BytesRead += n);
-                    using (result.ZipBytes)
+                        captureArchive: depth < limits.MaxArchiveDepth, consumed: n => BytesRead += n);
+                    using (result.ArchiveBytes)
                     {
                         if (result.Finding.Sha256 is not null && checkedInput.Crc != header.Crc)
                         { Notice(name, FileVerdict.Error, "ZIP entry integrity check failed (CRC-32)."); continue; }
                         if (result.Finding.Sha256 is not null) ScannedEntries++;
                         if (result.Finding.Verdict != FileVerdict.NoKnownMatch)
                             Findings.Add(result.Finding with { Path = container, ArchiveEntry = name, ContainerSha256 = containerHash });
-                        if (result.Finding.Verdict is FileVerdict.KnownThreat or FileVerdict.TestFile or FileVerdict.Error or FileVerdict.Skipped) continue;
-                        if (result.IsZip)
-                        {
-                            if (depth >= limits.MaxArchiveDepth) Notice(name, FileVerdict.Skipped, "Nested archive depth budget reached; its hash was checked, contents were not.");
-                            else if (result.ZipBytes is null) Notice(name, FileVerdict.Skipped, "Nested archive exceeds the in-memory archive budget; only its hash was checked.");
-                            else await ReadZip(result.ZipBytes, name + " → ", depth + 1, token);
-                        }
-                        else if (result.UnsupportedArchive)
-                            Notice(name, FileVerdict.Skipped, "Nested archive format is unsupported; only its hash was checked.");
+                        await ReadNested(result, entry.FullName, name, depth, token);
                     }
                 }
                 catch (Exception ex) when (ex is IOException or InvalidDataException or NotSupportedException)
@@ -82,51 +82,77 @@ internal sealed class ArchiveScanner(FileScanner scanner, ScanLimits limits)
     private static bool SafeName(string name)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > 2048 || name.StartsWith('/') || name.Contains('\\') || name.Contains(':') || name.Any(char.IsControl)) return false;
-        return !name.Split('/').Any(part => part is "." or "..");
+        var remaining = name.AsSpan();
+        while (!remaining.IsEmpty)
+        {
+            var end = remaining.IndexOf('/');
+            var part = end < 0 ? remaining : remaining[..end];
+            if (part.SequenceEqual(".") || part.SequenceEqual("..")) return false;
+            if (end < 0) break;
+            remaining = remaining[(end + 1)..];
+        }
+        return true;
     }
     private async Task<List<Header>> Preflight(Stream stream, CancellationToken token)
     {
         if (!stream.CanSeek || stream.Length < 22) throw new InvalidDataException("Invalid ZIP container.");
-        var tail = new byte[(int)Math.Min(stream.Length, 65557)];
-        stream.Position = stream.Length - tail.Length; await stream.ReadExactlyAsync(tail, token);
-        var end = -1;
-        for (var i = tail.Length - 22; i >= 0; i--)
-            if (U32(tail, i) == 0x06054b50 && i + 22 + U16(tail, i + 20) == tail.Length) { end = i; break; }
-        if (end < 0) throw new InvalidDataException("ZIP end record is missing or has trailing data.");
-        var count = U16(tail, end + 10); var length = U32(tail, end + 12); var offset = U32(tail, end + 16);
-        if (U16(tail, end + 4) != 0 || U16(tail, end + 6) != 0 || U16(tail, end + 8) != count) throw new InvalidDataException("Multipart ZIP files are unsupported.");
-        if (count == ushort.MaxValue || length == uint.MaxValue || offset == uint.MaxValue) throw new InvalidDataException("ZIP64 files are outside the supported scan limits.");
-        if (count > limits.MaxArchiveEntries || length > 4 * 1024 * 1024) throw new InvalidDataException("ZIP central directory exceeds the entry/metadata budget.");
-        var endPosition = stream.Length - tail.Length + end;
-        if ((long)offset + length != endPosition) throw new InvalidDataException("ZIP central directory boundaries are inconsistent.");
-        stream.Position = offset; var headers = new List<Header>(count); var fixedHeader = new byte[46];
-        for (var i = 0; i < count; i++)
+        var tailLength = (int)Math.Min(stream.Length, 65557);
+        var tail = ArrayPool<byte>.Shared.Rent(tailLength);
+        byte[]? names = null;
+        try
         {
-            token.ThrowIfCancellationRequested();
-            await scanner.CheckpointAsync(token);
-            if (stream.Position + fixedHeader.Length > endPosition) throw new InvalidDataException("Truncated ZIP central directory.");
-            await stream.ReadExactlyAsync(fixedHeader, token);
-            if (U32(fixedHeader, 0) != 0x02014b50 || U16(fixedHeader, 34) != 0) throw new InvalidDataException("Invalid ZIP directory entry.");
-            var compressed = U32(fixedHeader, 20); var expanded = U32(fixedHeader, 24); var local = U32(fixedHeader, 42);
-            if (compressed == uint.MaxValue || expanded == uint.MaxValue || local == uint.MaxValue) throw new InvalidDataException("ZIP64 entries are unsupported.");
-            if ((long)local + 30 > offset || (long)local + 30 + compressed > offset) throw new InvalidDataException("ZIP local entry boundaries are inconsistent.");
-            var variable = U16(fixedHeader, 28) + U16(fixedHeader, 30) + U16(fixedHeader, 32);
-            if (stream.Position + variable > endPosition) throw new InvalidDataException("Truncated ZIP entry metadata.");
-            var metadata = new byte[variable]; await stream.ReadExactlyAsync(metadata, token);
-            var next = stream.Position; var localHeader = new byte[30]; stream.Position = local;
-            await stream.ReadExactlyAsync(localHeader, token);
-            var localNameLength = U16(localHeader, 26); var dataStart = (long)local + 30 + localNameLength + U16(localHeader, 28);
-            if (U32(localHeader, 0) != 0x04034b50 || U16(localHeader, 6) != U16(fixedHeader, 8) || U16(localHeader, 8) != U16(fixedHeader, 10)
-                || localNameLength != U16(fixedHeader, 28) || dataStart + compressed > offset) throw new InvalidDataException("ZIP local header is inconsistent.");
-            var localName = new byte[localNameLength]; await stream.ReadExactlyAsync(localName, token);
-            if (!localName.AsSpan().SequenceEqual(metadata.AsSpan(0, localNameLength))) throw new InvalidDataException("ZIP local and central entry names differ.");
-            if ((U16(fixedHeader, 8) & 8) == 0 && (U32(localHeader, 14) != U32(fixedHeader, 16) || U32(localHeader, 18) != compressed || U32(localHeader, 22) != expanded))
-                throw new InvalidDataException("ZIP local and central sizes or checksums differ.");
-            headers.Add(new(U16(fixedHeader, 8), U16(fixedHeader, 10), U32(fixedHeader, 16), compressed, expanded, U32(fixedHeader, 38)));
-            stream.Position = next;
+            stream.Position = stream.Length - tailLength; await stream.ReadExactlyAsync(tail.AsMemory(0, tailLength), token);
+            var end = -1;
+            for (var i = tailLength - 22; i >= 0; i--)
+                if (U32(tail, i) == 0x06054b50 && i + 22 + U16(tail, i + 20) == tailLength) { end = i; break; }
+            if (end < 0) throw new InvalidDataException("ZIP end record is missing or has trailing data.");
+            var count = U16(tail, end + 10); var length = U32(tail, end + 12); var offset = U32(tail, end + 16);
+            if (U16(tail, end + 4) != 0 || U16(tail, end + 6) != 0 || U16(tail, end + 8) != count) throw new InvalidDataException("Multipart ZIP files are unsupported.");
+            if (count == ushort.MaxValue || length == uint.MaxValue || offset == uint.MaxValue) throw new InvalidDataException("ZIP64 files are outside the supported scan limits.");
+            if (count > limits.MaxArchiveEntries || length > 4 * 1024 * 1024) throw new InvalidDataException("ZIP central directory exceeds the entry/metadata budget.");
+            var endPosition = stream.Length - tailLength + end;
+            if ((long)offset + length != endPosition) throw new InvalidDataException("ZIP central directory boundaries are inconsistent.");
+            stream.Position = offset; var headers = new List<Header>(count); var fixedHeader = new byte[46]; var localHeader = new byte[30];
+            for (var i = 0; i < count; i++)
+            {
+                token.ThrowIfCancellationRequested(); await scanner.CheckpointAsync(token);
+                if (stream.Position + fixedHeader.Length > endPosition) throw new InvalidDataException("Truncated ZIP central directory.");
+                await stream.ReadExactlyAsync(fixedHeader, token);
+                if (U32(fixedHeader, 0) != 0x02014b50 || U16(fixedHeader, 34) != 0) throw new InvalidDataException("Invalid ZIP directory entry.");
+                var compressed = U32(fixedHeader, 20); var expanded = U32(fixedHeader, 24); var local = U32(fixedHeader, 42);
+                if (compressed == uint.MaxValue || expanded == uint.MaxValue || local == uint.MaxValue) throw new InvalidDataException("ZIP64 entries are unsupported.");
+                if ((long)local + 30 > offset || (long)local + 30 + compressed > offset) throw new InvalidDataException("ZIP local entry boundaries are inconsistent.");
+                var nameLength = U16(fixedHeader, 28);
+                var variable = nameLength + U16(fixedHeader, 30) + U16(fixedHeader, 32);
+                if (stream.Position + variable > endPosition) throw new InvalidDataException("Truncated ZIP entry metadata.");
+                // Reuse bounded scratch space across entries; comments/extra fields need
+                // no retained copy. All boundaries and local name bytes remain checked.
+                if (names is null || names.Length < nameLength * 2)
+                {
+                    if (names is not null) ArrayPool<byte>.Shared.Return(names, clearArray: true);
+                    names = null; names = ArrayPool<byte>.Shared.Rent(Math.Max(1, nameLength * 2));
+                }
+                await stream.ReadExactlyAsync(names.AsMemory(0, nameLength), token);
+                var next = stream.Position + variable - nameLength; stream.Position = local;
+                await stream.ReadExactlyAsync(localHeader, token);
+                var localNameLength = U16(localHeader, 26); var dataStart = (long)local + 30 + localNameLength + U16(localHeader, 28);
+                if (U32(localHeader, 0) != 0x04034b50 || U16(localHeader, 6) != U16(fixedHeader, 8) || U16(localHeader, 8) != U16(fixedHeader, 10)
+                    || localNameLength != nameLength || dataStart + compressed > offset) throw new InvalidDataException("ZIP local header is inconsistent.");
+                await stream.ReadExactlyAsync(names.AsMemory(nameLength, nameLength), token);
+                if (!names.AsSpan(0, nameLength).SequenceEqual(names.AsSpan(nameLength, nameLength))) throw new InvalidDataException("ZIP local and central entry names differ.");
+                if ((U16(fixedHeader, 8) & 8) == 0 && (U32(localHeader, 14) != U32(fixedHeader, 16) || U32(localHeader, 18) != compressed || U32(localHeader, 22) != expanded))
+                    throw new InvalidDataException("ZIP local and central sizes or checksums differ.");
+                headers.Add(new(U16(fixedHeader, 8), U16(fixedHeader, 10), U32(fixedHeader, 16), compressed, expanded, U32(fixedHeader, 38)));
+                stream.Position = next;
+            }
+            if (stream.Position != endPosition) throw new InvalidDataException("ZIP central directory count does not match its size.");
+            return headers;
         }
-        if (stream.Position != endPosition) throw new InvalidDataException("ZIP central directory count does not match its size.");
-        return headers;
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(tail, clearArray: true);
+            if (names is not null) ArrayPool<byte>.Shared.Return(names, clearArray: true);
+        }
     }
     private static ushort U16(byte[] data, int at) => BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(at, 2));
     private static uint U32(byte[] data, int at) => BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(at, 4));

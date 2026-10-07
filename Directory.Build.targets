@@ -1,0 +1,6 @@
+<Project>
+  <!-- Reject truncated compressed streams before accepting contained evidence. -->
+  <ItemGroup Condition="'$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe'">
+    <RuntimeHostConfigurationOption Include="System.IO.Compression.UseStrictValidation" Value="true" />
+  </ItemGroup>
+</Project>
