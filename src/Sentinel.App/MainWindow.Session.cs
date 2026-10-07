@@ -18,6 +18,7 @@ public partial class MainWindow
         public FindingInbox Findings { get; } = new();
         public string? Problem;
         public long ShownDropped;
+        public long DisplayOmitted;
         public MonitorRecoveryStatus? ShownRecovery;
     }
     private MonitorMessages? monitorMessages;
@@ -82,8 +83,10 @@ public partial class MainWindow
             var duplicate = engineFindings.FirstOrDefault(x => string.Equals(x.Path, finding.Path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
                 && x.ArchiveEntry == finding.ArchiveEntry && string.Equals(x.Sha256, finding.Sha256, StringComparison.OrdinalIgnoreCase) && x.Verdict == finding.Verdict);
             if (duplicate is not null) continue;
+            if (finding.Verdict is FileVerdict.KnownThreat or FileVerdict.TestFile) detections++;
             if (engineFindings.Count >= 2_000)
             {
+                messages.DisplayOmitted++;
                 var expendable = engineFindings.FirstOrDefault(x => x.Verdict is not (FileVerdict.KnownThreat or FileVerdict.TestFile));
                 engineError = "Live findings reached the display limit. Run and save a manual scan for a complete report.";
                 Interlocked.Exchange(ref messages.Problem, engineError);
@@ -91,7 +94,6 @@ public partial class MainWindow
                 engineFindings.Remove(expendable);
             }
             engineFindings.Add(finding); added++;
-            if (finding.Verdict is FileVerdict.KnownThreat or FileVerdict.TestFile) detections++;
         }
         if (detections > 0) NotifyDetection(detections);
         if (added > 0 && !busy) StatusText = $"Folder monitor: {added} new findings to review · {detections} exact detections.";
@@ -106,10 +108,11 @@ public partial class MainWindow
                 : "Folder monitoring is running.";
         }
         var problem = Interlocked.Exchange(ref messages.Problem, null);
-        if (messages.Findings.Dropped != messages.ShownDropped)
+        var omitted = messages.Findings.Dropped + messages.DisplayOmitted;
+        if (omitted != messages.ShownDropped)
         {
-            messages.ShownDropped = messages.Findings.Dropped;
-            problem = $"The monitoring display queue omitted {messages.ShownDropped:N0} findings. Exact detections take priority. Run and save a manual scan for a report.";
+            messages.ShownDropped = omitted;
+            problem = $"The monitoring inbox or display omitted {omitted:N0} findings. Exact detections take priority. Run and save a manual scan for a report.";
         }
         if (problem is not null) { engineError = problem; if (!busy) StatusText = problem; }
     }

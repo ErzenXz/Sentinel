@@ -207,7 +207,8 @@ public partial class MainWindow
         var recoveryText = state.Scanning ? "Rechecking folder…" : state.Pending ? "Recovery queued" : state.LastCompleted is null ? "Initial scan queued" : $"Last recheck {state.LastCompleted.Value.ToLocalTime():t}: {state.Scanned:N0} files, {state.Detected} detections, {state.Skipped + state.Errors} incomplete";
         if (state.LimitReached || state.FindingsTruncated) recoveryText += "; scan/display limit reached";
         if (state.Canceled) recoveryText += "; time budget reached — run a manual scan";
-        return $"Changed files checked: {monitor.CompletedScans:N0} · queued: {monitor.PendingFiles} · missed events: {monitor.DroppedEvents:N0} · omitted display findings: {monitorMessages?.Findings.Dropped ?? 0:N0}\n{recoveryText}";
+        var omitted = (monitorMessages?.Findings.Dropped ?? 0) + (monitorMessages?.DisplayOmitted ?? 0);
+        return $"Changed files checked: {monitor.CompletedScans:N0} · queued: {monitor.PendingFiles} · missed events: {monitor.DroppedEvents:N0} · omitted display findings: {omitted:N0}\n{recoveryText}";
     }
     private Task StopMonitor()
     {
