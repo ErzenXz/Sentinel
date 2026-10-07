@@ -110,6 +110,15 @@ The same warmed harness compares v0.10 and v0.11 sequentially in the same output
 | ZIP, 1,024 small entries | 2,337,256 | 1,755,784 | 24.9% |
 | 8 MiB nested ZIP at depth limit | 8,578,192 | 123,712 | 98.6% |
 
-The first change comes from reused preflight scratch, compact value headers and span-based name checks; the second removes an 8 MiB copy that cannot be expanded at the configured depth. Buffers retained by the runtime pool, peak/retained heap and working set are not measured. A 98.6% allocation reduction for this workload is not a 98.6% reduction in app RAM. Folder/report/feed allocation differences are small; elapsed times are not general throughput claims. Windows results will be recorded after the paired run.
+The first change comes from reused preflight scratch, compact value headers and span-based name checks; the second removes an 8 MiB copy that cannot be expanded at the configured depth. Buffers retained by the runtime pool, peak/retained heap and working set are not measured. A 98.6% allocation reduction for this workload is not a 98.6% reduction in app RAM. Folder/report/feed allocation differences are small; elapsed times are not general throughput claims. The Windows hosted-runner results below confirm the allocation changes; ordinary hardware working-set/startup/idle/throughput and total Defender/AI overhead remain unmeasured.
 
 [Mac baseline](benchmarks/archive-baseline-v0.10-macos-arm64.json) · [Mac candidate](benchmarks/archive-v0.11-macos-arm64.json)
+
+| Windows x64 workload | v0.10 allocated bytes | v0.11 allocated bytes | Reduction | Baseline/candidate median ms |
+| --- | ---: | ---: | ---: | ---: |
+| ZIP, 1,024 small entries | 2,340,640 | 1,755,016 | 25.0% | 60.7266 / 57.2398 |
+| 8 MiB nested ZIP at depth limit | 8,572,008 | 117,456 | 98.6% | 54.6048 / 51.2994 |
+
+Ordinary Windows folder allocations changed 8,501,944 → 8,523,520 bytes (+0.3%); report 17,168,664 → 17,168,720 and unchanged-feed refresh 10,117,488 → 10,117,816 are effectively unchanged. The new 512-byte TAR prefix uses space within the existing read buffer, rather than another array. Archive timing medians are samples from this runner; no consistent or general throughput improvement is claimed. The 8 MiB removal materially reduces temporary allocation at a configured coverage limit, with the same explicit omitted-content notice. Default nested inspection remains supported within its existing memory budget.
+
+[Windows baseline](benchmarks/archive-baseline-v0.10-windows-x64.json) · [Windows candidate](benchmarks/archive-v0.11-windows-x64.json) · [Paired Windows workflow](https://github.com/ErzenXz/Sentinel/actions/runs/37656744317). The measured Windows core is `63e98e7`; Mac measurements used `2e16fab` before the GNU recognition/committed-recovery correction. Both retained identical benchmark coverage; these subsequent corrections do not remove further read/hash checks. UI footer and documentation updates are outside these core workloads. Full fixture CPU/memory samples remain diagnostic; production tiered compilation stays enabled.

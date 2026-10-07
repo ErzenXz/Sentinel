@@ -39,6 +39,7 @@ public partial class MainWindow : Window
     {
         security = new(runner);
         InitializeComponent();
+        VersionLabel.Text = $"v{typeof(MainWindow).Assembly.GetName().Version?.ToString(2)} · Development preview";
         BuildNavigation();
         InitializeAnnouncements();
         PreviewKeyDown += KeyboardNavigation;

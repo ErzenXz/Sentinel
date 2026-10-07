@@ -192,6 +192,8 @@ internal static partial class Program
     }
     private static async Task Verify(MainWindow window, FixtureRunner runner, string profile)
     {
+        Check("Version label follows the actual application build", Field<TextBlock>(window, "VersionLabel").Text
+            == $"v{typeof(MainWindow).Assembly.GetName().Version?.ToString(2)} · Development preview");
         Stage("Checking startup cancellation");
         await Until(() => Field<bool>(window, "busy"), "Startup fixture refresh did not begin");
         Check("Busy startup disables page actions while cancellation and navigation remain reachable",
