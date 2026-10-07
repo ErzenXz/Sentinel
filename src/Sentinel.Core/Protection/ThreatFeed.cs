@@ -13,7 +13,8 @@ public sealed class VerifiedFeed
 {
     public FeedPayload Payload { get; }
     public IReadOnlyDictionary<string, HashIndicator> Hashes { get; }
-    internal VerifiedFeed(FeedPayload payload, Dictionary<string, HashIndicator>? validatedHashes = null)
+    private readonly byte[]? signedPayloadDigest;
+    internal VerifiedFeed(FeedPayload payload, Dictionary<string, HashIndicator>? validatedHashes = null, byte[]? signedPayloadDigest = null)
     {
         // Labels and source names repeat thousands of times in public IOC lists.
         // Share identical text inside this catalog only; never globally intern feed data.
@@ -34,7 +35,10 @@ public sealed class VerifiedFeed
         }
         Payload = payload with { Hashes = rules };
         Hashes = hashes;
+        this.signedPayloadDigest = signedPayloadDigest;
     }
+    internal bool MatchesSignedPayload(VerifiedFeed other) => signedPayloadDigest is not null && other.signedPayloadDigest is not null
+        && CryptographicOperations.FixedTimeEquals(signedPayloadDigest, other.signedPayloadDigest);
     public bool IsExpired(DateTimeOffset now) => Payload.ExpiresAt <= now;
 }
 
@@ -75,7 +79,7 @@ public static class FeedVerifier
         {
             if (rule is null || !IsHash(rule.Sha256) || !SafeLabel(rule.Label) || !SafeLabel(rule.Source) || !hashes.TryAdd(rule.Sha256, rule)) throw new InvalidDataException("Malformed or duplicate threat indicator.");
         }
-        return new(payload, hashes);
+        return new(payload, hashes, SHA256.HashData(data));
     }
     public static bool IsHash(string? hash) => hash is { Length: 64 } && hash.All(Uri.IsHexDigit);
     private static bool SafeLabel(string? text) => text is { Length: > 0 and <= 160 } && !text.Any(char.IsControl);
@@ -137,6 +141,9 @@ public sealed class FeedRepository(string directory)
             var raw = bytes.GetBuffer().AsMemory(0, (int)bytes.Length);
             var previous = Current;
             var verified = FeedVerifier.Verify(raw.Span, settings.PublicKeyPem, DateTimeOffset.UtcNow, Math.Max(ReadSequence(), previous?.Payload.Sequence ?? 0));
+            if (previous is not null && verified.Payload.Sequence == previous.Payload.Sequence
+                && !previous.MatchesSignedPayload(verified))
+                throw new InvalidDataException("Feed content changed without a sequence increase.");
             // An equal sequence must contain the exact same signed payload, not a different rule set.
             if (File.Exists(CachePath) && verified.Payload.Sequence == ReadSequence())
             {

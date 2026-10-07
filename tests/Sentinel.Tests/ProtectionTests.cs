@@ -108,6 +108,17 @@ internal static class ProtectionTests
             response=Bundle([new(new string('f',64),"Different","Test")],sequence:1);
             await Fails<InvalidDataException>(()=>repo.UpdateAsync(http,new("https://example.com/",PublicKey)));
         });
+        test("Missing cache cannot allow same-sequence replacement of the active catalog", async () => {
+            using var tmp = new Temporary(); var repo = new FeedRepository(tmp.File("feed")); var original = Bundle(); byte[] response = original;
+            using var http = new HttpClient(new FakeHttp(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(response) })));
+            var settings = new ProtectionSettings("https://example.com/", PublicKey);
+            var trusted = await repo.UpdateAsync(http, settings); File.Delete(tmp.File("feed/feed.json"));
+            response = Bundle([new(new string('f', 64), "Different catalog", "Local test")]);
+            await Fails<InvalidDataException>(() => repo.UpdateAsync(http, settings));
+            Check(ReferenceEquals(repo.Current, trusted) && !File.Exists(tmp.File("feed/feed.json")));
+            response = original; var recovered = await repo.UpdateAsync(http, settings);
+            Check(recovered.Payload.Sequence == trusted.Payload.Sequence && File.ReadAllBytes(tmp.File("feed/feed.json")).SequenceEqual(original));
+        });
         test("Multi-chunk feed refresh preserves every indicator and exact cache bytes", async () => {
             using var tmp = new Temporary(); var repo = new FeedRepository(tmp.File("feed"));
             var rules = Enumerable.Range(0, 1200).Select(i => new HashIndicator(i.ToString("X64"), "Harmless transport fixture", "Local test")).ToArray();
