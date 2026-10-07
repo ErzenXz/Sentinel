@@ -1,3 +1,16 @@
+# Development verification — 2026-10-07, v0.9.0
+
+- Windows x64 native WPF fixture verification: **108/108 assertions pass**, with **27 client-area PNGs**, no binding errors and no detected layout errors. Startup cancellation, navigation while busy, explicit selection, full evidence/hash, search without data loss, unavailable remediation/network actions, UI Automation disclosures, both inspector arrangements, scan pause/resume/cancel/subsequent scan and settled shutdown pass. The fixture enforces and checks actual 1200 × 820 and 960 × 680 window dimensions.
+- Scanner view retention: the baseline keeps **12/12** discarded views after repeated navigation/collection; the fix keeps **0/12**. The page detaches its collection subscription, clears its binding/filter and explicitly stops its status timer. Button-label brush assertions cover primary/quiet/destructive/disabled controls in rendered pages and the forced system-color resource branch.
+- Both Windows x64/ARM64 build/test/package jobs pass for candidate `fce6a664af8e7489e30caee18ad63ff54f04172c`: **125 core tests and 13 server tests** in each architecture job; native verifier execution is x64 only. Local WPF/test-harness Release compilation has zero warnings/errors. Source changes do not alter engine rules or model/OS action implementations.
+- The native profile is temporary and status reads are injected fixtures. Local scans use harmless files; no real credentials, paid inference or OS mutation action is used. The runner is elevated, so standard-user remediation/AI execution is not certified by these checks.
+- Raw fixture CPU/working set/private/managed readings are retained, including the high software-rendered CPU sample. They are not an ordinary production idle benchmark or a process-memory reduction claim. [Performance method and limits](PERFORMANCE.md), [native report/PNGs](NATIVE-UI-VERIFICATION.md), [candidate Windows run](https://github.com/ErzenXz/Sentinel/actions/runs/37642692878).
+- Tagged release publication requires the native job and both architecture build/test/package jobs, then checks ZIP architecture/runtime/version/documentation/integrity and publishes checksums.
+
+Native ARM64 execution, real high contrast, hardware DPI/text scaling, Narrator, tray/notifications, UAC/DPAPI/OS enforcement and quiet-hardware performance remain acceptance work. This is an unsigned preview, and full antivirus/driver/service/signing/independent detection evaluation gates remain open.
+
+## Previous v0.8 verification
+
 # Development verification — 2026-10-07, v0.8.0
 
 - Portable core tests: **125/125 pass**. Thirteen new cases cover initial known-hash monitoring, excluded storage/sibling boundaries, 10,000 coalesced recovery requests with ongoing changed-file coverage, populated directory moves, a bounded queue overflow during a paused scan, cancellation/disposal, rewrites, recovery timeouts/limits, observer failure isolation, exclusion validation, exact-detection priority, deduplication and 160,000 concurrent inbox additions. Existing watcher tests now wait for the initial scan rather than assume there is no initial coverage. All filesystem detections use signed hashes of harmless fixtures.

@@ -19,3 +19,16 @@ The test supplies no real credentials, makes no paid AI requests and does not cl
 This job runs on Windows x64. Windows ARM64 builds are separate; native ARM64 execution, actual OS high contrast, hardware/multiple-monitor DPI, increased Windows text size, keyboard-only usability, Narrator, UAC, DPAPI recovery, tray behavior and real enforcement still need the [Windows acceptance checks](WINDOWS-ACCEPTANCE.md). A forced system-brush branch is not a full high-contrast test.
 
 WPF rendering follows [Microsoft's visual encoding example](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/how-to-encode-a-visual-to-an-image-file). The fixture suppresses production window creation because the [WPF application constructor queues startup before its dispatcher runs](https://source.dot.net/PresentationFramework/System/Windows/Application.cs.html).
+
+
+## Recorded v0.9 candidate
+
+[Windows run 37642692878](https://github.com/ErzenXz/Sentinel/actions/runs/37642692878) passed **108 assertions**, produced **27 captures**, and reported no binding/layout errors. Both Windows x64/ARM64 build/test/package jobs passed. The verifier executed on x64 with an elevated hosted runner, so it checked disabled elevated-session remediation/AI rather than standard-user execution. [Raw report](benchmarks/native-ui-v0.9-windows-x64.json).
+
+These unchanged PNGs come from that native run. They show fixture data and an administrator session; they do not describe a real user's protection status.
+
+![Native Windows Home with harmless fixture data](images/native-home-windows-x64-fixture.png)
+
+![Native Windows selected evidence in the wide inspector](images/native-findings-wide-windows-x64-fixture.png)
+
+![Native Windows selected evidence in the stacked inspector](images/native-findings-stacked-windows-x64-fixture.png)

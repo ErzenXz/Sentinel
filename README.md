@@ -11,7 +11,7 @@ MIT-licensed native Windows security application, with an independent local scan
 - **Readable action labels:** primary, quiet, destructive and disabled button text follows its actual control color. Native screenshots exposed the earlier dark labels on green primary buttons.
 - **Native Windows UI verification:** CI renders every real WPF page at normal and minimum sizes, checks both inspector arrangements, exercises pause/resume/cancel and shutdown, detects binding/layout errors and preserves labeled fixture PNGs. Releases now require this job as well as both architecture builds.
 
-[Download v0.9.0](https://github.com/ErzenXz/Sentinel/releases/tag/v0.9.0) · [Release notes](docs/RELEASE-0.9.0.md) · [Native verification and limits](docs/NATIVE-UI-VERIFICATION.md)
+[Download v0.9.0](https://github.com/ErzenXz/Sentinel/releases/tag/v0.9.0) · [Release notes](docs/RELEASE-0.9.0.md) · [Native Windows screenshots, verification and limits](docs/NATIVE-UI-VERIFICATION.md)
 
 ## Included from v0.8.0
 
