@@ -133,6 +133,7 @@ ProtectionTests.Register(Test);
 ScanPerformanceTests.Register(Test);
 ArchiveTests.Register(Test);
 SessionTests.Register(Test);
+MonitorTests.Register(Test);
 ModelDiscoveryTests.Register(Test);
 NetworkTests.Register(Test);
 var failed = 0;

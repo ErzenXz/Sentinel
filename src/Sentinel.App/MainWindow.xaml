@@ -12,7 +12,7 @@
                 <StackPanel DockPanel.Dock="Bottom">
                     <Border Height="1" Background="{DynamicResource RailHoverSurface}" Margin="4,8,4,8"/>
                     <StackPanel x:Name="SettingsHost"/>
-                    <TextBlock Text="v0.7 · Development preview" FontSize="11" Foreground="{DynamicResource RailMuted}" Margin="12,10,0,0"/>
+                    <TextBlock Text="v0.8 · Development preview" FontSize="11" Foreground="{DynamicResource RailMuted}" Margin="12,10,0,0"/>
                     <TextBlock x:Name="Footprint" FontSize="11" Foreground="{DynamicResource RailMuted}" Margin="12,2,0,0"
                                ToolTip="Working set of this window process. Microsoft Defender and AI providers are excluded."/>
                 </StackPanel>

@@ -164,7 +164,7 @@ internal static class ArchiveTests
             using var tmp = new Temporary(); var excluded = tmp.File("excluded"); Directory.CreateDirectory(excluded);
             var calls = 0; var monitor = new FolderMonitor(tmp.Root, () => { Interlocked.Increment(ref calls); return new(); }, _ => {}, _ => {}, [excluded]);
             await System.IO.File.WriteAllTextAsync(Path.Combine(excluded,"private.bin"), "fixture"); await Task.Delay(800);
-            Check(calls == 0 && monitor.ObservedChanges == 0);
+            Check(calls == 1 && monitor.RecoveryStatus.Completed == 1 && monitor.RecoveryStatus.Scanned == 0 && monitor.ObservedChanges == 0);
             await monitor.DisposeAsync(); await monitor.DisposeAsync(); Check(!monitor.IsRunning && monitor.PendingFiles == 0);
             Check(!FolderMonitor.IsWithin(tmp.File("excluded-other/file"), excluded));
         });
@@ -175,6 +175,7 @@ internal static class ArchiveTests
                 if (finding.Sha256 == Convert.ToHexString(SHA256.HashData(second))) done.TrySetResult();
                 else if (Interlocked.Exchange(ref rewrite,1) == 0) { System.IO.File.WriteAllBytes(path, second); Thread.Sleep(200); }
             }, problem => done.TrySetException(new Exception(problem)));
+            await Task.Run(async () => { while (monitor.RecoveryStatus.Completed == 0) await Task.Delay(10); }).WaitAsync(TimeSpan.FromSeconds(8));
             await System.IO.File.WriteAllBytesAsync(path, first); await done.Task.WaitAsync(TimeSpan.FromSeconds(8)); Check(monitor.CompletedScans >= 2);
         });
         test("Schedule status uses current-user task and preserves Windows result codes", async () => {

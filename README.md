@@ -2,9 +2,19 @@
 
 MIT-licensed native Windows security application, with an independent local scanner, self-hostable intelligence server, Windows protection controls, and optional AI explanations.
 
-**v0.7.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
+**v0.8.0 is an unsigned development preview.** Our own engine detects exact known hashes independently of Defender. It is not yet a replacement for a tested full antivirus product; keep Defender's real-time protection enabled. No “best,” “lightest,” or detection-rate claim is established.
 
-## New in v0.7.0
+## New in v0.8.0
+
+- **Monitoring covers existing files:** starting or resuming a selected folder now runs a Low impact scan while incoming changes stay queued.
+- **Recovery after folder moves and missed changes:** directory-name notifications, watcher overflow, full file queues, successful signed-feed updates and the new Recheck watched folder button request a bounded rescan. Requests coalesce; one worker handles file changes and recovery, with a 30-second cooldown between rechecks.
+- **Background work has a time budget:** recovery stops cooperatively after five minutes and retains completed findings. File/archive/count/depth limits and excluded Sentinel storage stay explicit. Live monitoring continues after a recovery deadline. Permanent watcher failures mark monitoring stopped and ask you to restart it.
+- **Bounded, batched live findings:** a 512-item worker-to-UI inbox replaces per-finding dispatcher callbacks. Up to 128 findings reach the interface every 200 ms; duplicate pending evidence collapses and exact detections take priority. Omitted findings are counted, and the 2,000-row display cannot replace exact detections with review findings.
+- **Live monitoring details:** changed-file counts, queued paths, missed events, omitted display findings and the last recovery's counts/limits update while the page is open. Notifications batch counts only.
+
+[Download v0.8.0](https://github.com/ErzenXz/Sentinel/releases/tag/v0.8.0) · [Release notes](docs/RELEASE-0.8.0.md)
+
+## Included from v0.7.0
 
 - **Pause and resume local scans:** controls stay in the status bar while page controls are disabled. Cancellation works while paused and saves completed findings. Pausing is cooperative; an in-flight read can finish before the next checkpoint.
 - **Balanced or Low impact:** choose the speed for this session in File scanner. Low impact yields briefly after 4 MiB read or 32 inspected contents, including ZIP contents, using the same rules and budgets. The CLI accepts `scan <path> --low-impact`; monitoring and scheduling keep their existing defaults.
@@ -59,7 +69,7 @@ Existing capabilities include Defender quick/full/custom scans and intelligence 
 
 ## Run on Windows
 
-Extract **all files** from the appropriate v0.7.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
+Extract **all files** from the appropriate v0.8.0 Windows archive and open `Sentinel.exe`. The archive includes .NET and `Sentinel.Scanner.exe`; no SDK is needed to run it.
 
 Open **File scanner** to scan a file/folder immediately using the bundled public indicator snapshot. Open **Quarantine** to review backups. Use a standard Windows user session for independent file remediation and AI. Windows Firewall/Defender operations can require Settings → About Sentinel & administrator tools → Restart as administrator. AI and personal-file quarantine/restore are disabled in elevated sessions.
 
@@ -96,6 +106,6 @@ No Electron, embedded browser, telemetry, or bundled LLM. The own scanner uses o
 
 A hash list detects exact published files and misses changed/new malware. We do not yet have kernel-enforced execution blocking, broad archive-format coverage, ransomware behavioral blocking, a protected service, or AV certification. These require sustained engineering and independent evaluation.
 
-Read [v0.7.0 release notes](docs/RELEASE-0.7.0.md), [performance measurements](docs/PERFORMANCE.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
+Read [v0.8.0 release notes](docs/RELEASE-0.8.0.md), [performance measurements](docs/PERFORMANCE.md), [engine design](docs/PROTECTION-ENGINE.md), [AI connections](docs/AI-PROVIDERS.md), [security boundaries](docs/SECURITY.md), [verification](docs/VERIFICATION.md), [Windows acceptance checks](docs/WINDOWS-ACCEPTANCE.md), [roadmap](docs/ROADMAP.md), and [third-party notices](docs/THIRD-PARTY-NOTICES.md).
 
 Sentinel code is MIT licensed. Embedded ESET indicator data remains BSD two-clause licensed; ESET does not endorse Sentinel. No OpenClaw source code or third-party malware binaries are bundled.

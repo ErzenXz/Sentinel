@@ -1,3 +1,15 @@
+# Development verification — 2026-10-07, v0.8.0
+
+- Portable core tests: **125/125 pass**. Thirteen new cases cover initial known-hash monitoring, excluded storage/sibling boundaries, 10,000 coalesced recovery requests with ongoing changed-file coverage, populated directory moves, a bounded queue overflow during a paused scan, cancellation/disposal, rewrites, recovery timeouts/limits, observer failure isolation, exclusion validation, exact-detection priority, deduplication and 160,000 concurrent inbox additions. Existing watcher tests now wait for the initial scan rather than assume there is no initial coverage. All filesystem detections use signed hashes of harmless fixtures.
+- Server tests: **13/13 pass**. Actual Node → .NET HTTP/CLI interoperability passes for signed intelligence, rollback/expiry/tamper rejection, contained detections, report output, offline low-impact history, metadata-only provider listing and both Jev adapters/local warning preservation. No paid inference, user credentials or malware downloads are used.
+- Native WPF Release compilation passes with zero warnings/errors. The source uses a 512-item inbox and one session drain timer rather than dispatcher callbacks per monitoring finding/problem. Page status timers stop on unload, the session timer stops on stop/shutdown, Stop drains already delivered findings, and late worker messages belong only to their original inbox.
+- A same-output-directory benchmark comparing v0.7 and v0.8 shows essentially unchanged ordinary folder/report/catalog allocations; [method and raw results](PERFORMANCE.md). Active monitoring and Windows working set are not measured here.
+- Tagged release packaging remains gated by both Windows CI build/test/package jobs and archive architecture/runtime/version/documentation/integrity checks. Published workflow records and release assets establish the external build/release outcome.
+
+Native Windows x64/ARM64 monitoring, tray/GUI/Narrator/high-contrast behavior, permanent watcher-error acceptance, background deadline behavior on large trees and actual memory/CPU remain pending under [Windows checks](WINDOWS-ACCEPTANCE.md). The full antivirus/driver/service/signing and independent detection-evaluation gates remain open; this is a development preview.
+
+## Previous v0.7 verification
+
 # Development verification — 2026-10-07, v0.7.0
 
 - Portable core tests: **112/112 pass**. Sixteen initial scan/control/resource regressions plus catalog fidelity and metadata/symlink coverage supplement the previous suite; all marker-on-disk detections use benign signed test fixtures.

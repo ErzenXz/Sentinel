@@ -1,4 +1,4 @@
-# Native UI — v0.7.0
+# Native UI — v0.8.0
 
 Sentinel uses WPF, Segoe UI and Segoe MDL2 Assets. The redesign uses a charcoal navigation rail, a warm light canvas and dark-green primary actions. Sections use thin separators, with one scan entry panel on Home. No new dependencies, image assets, web view, animation loop or model runtime are shipped.
 
@@ -41,3 +41,7 @@ Claude Code was explicitly invoked with `claude -p --model claude-opus-5-5 --eff
 The Mac images are browser-rendered source-based mockups with example data, not Windows screenshots. They share native colors, desktop labels and geometry, with Arial/Lucide fallbacks; the preview adds narrower layouts below the native window minimum. Windows fonts, DPI, Narrator, high-contrast behavior, glyph appearance, dropdowns, sorting/clipboard and layout near the inspector breakpoint still require [Windows acceptance checks](WINDOWS-ACCEPTANCE.md).
 
 Glyph identifiers were checked against [Microsoft's Segoe MDL2 reference](https://learn.microsoft.com/en-us/windows/apps/design/iconography/segoe-ui-symbol-font); native appearance remains a Windows acceptance check.
+
+## Monitoring updates in v0.8
+
+Folder monitoring explains initial coverage, Low impact mode, the five-minute recovery budget and incomplete results. A Recheck watched folder action shares the same worker and cooldown as automatic recovery. Status counts update once a second while the monitoring section is loaded; the timer stops when the page unloads. Worker findings enter a 512-item deduplicated inbox and the session timer drains at most 128 every 200 ms. Notifications are count-only and batch detections; monitor callbacks no longer enqueue UI closures per finding or per problem.

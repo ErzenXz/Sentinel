@@ -27,6 +27,23 @@ public sealed record ScanLimits(long MaxFileBytes = 256L * 1024 * 1024, int MaxF
 
 public static class FileSafety
 {
+    internal static string[] NormalizeExclusions(IEnumerable<string>? directories)
+    {
+        var result = (directories ?? []).Take(33).Select(path => Path.TrimEndingDirectorySeparator(NormalizeLocalPath(path))).ToArray();
+        if (result.Length > 32) throw new ArgumentException("At most 32 excluded folders are supported.");
+        return result;
+    }
+    internal static bool IsWithinNormalized(string path, string directory)
+    {
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        return path.Equals(directory, comparison) || path.Length > directory.Length && path.StartsWith(directory, comparison)
+            && (Path.EndsInDirectorySeparator(directory) || path[directory.Length] == Path.DirectorySeparatorChar);
+    }
+    internal static bool IsExcluded(string path, string[] directories)
+    {
+        foreach (var directory in directories) if (IsWithinNormalized(path, directory)) return true;
+        return false;
+    }
     public static string NormalizeLocalPath(string path)
     {
         if (!System.IO.Path.IsPathFullyQualified(path)) throw new ArgumentException("Choose an absolute local path.");
@@ -216,12 +233,14 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
         }
         return null;
     }
-    public async Task<ScanReport> ScanPathAsync(string path, IProgress<ScanProgress>? progress = null, CancellationToken token = default)
+    public async Task<ScanReport> ScanPathAsync(string path, IProgress<ScanProgress>? progress = null, CancellationToken token = default,
+        IEnumerable<string>? excludedDirectories = null)
     {
         var started = DateTimeOffset.UtcNow; var clock = System.Diagnostics.Stopwatch.StartNew();
         var findings = new List<FileFinding>(); var scanned = 0; var detected = 0; var review = 0; var skipped = 0; var errors = 0; long bytes = 0; var limit = false; var attempted = 0;
         token.ThrowIfCancellationRequested();
         var root = FileSafety.NormalizeRegularPath(path);
+        var exclusions = FileSafety.NormalizeExclusions(excludedDirectories);
         // Streaming depth-first traversal keeps one enumerator per directory level,
         // rather than retaining every child path in a wide folder.
         var pending = new Stack<(IEnumerator<(string Path, FileAttributes Attributes)> Children, string Parent, int Depth)>();
@@ -254,6 +273,10 @@ public sealed class FileScanner(VerifiedFeed? feed = null, ScanLimits? limits = 
             if (next is null) break;
             var entry = next.Value; next = null;
             if (++attempted > limits.MaxFiles) { limit = true; break; }
+            if (FileSafety.IsExcluded(entry.Path, exclusions))
+            {
+                skipped++; Add(new(entry.Path, FileVerdict.Skipped, "Excluded from this scan by the monitoring storage policy.")); continue;
+            }
             try
             {
                 // Windows supplies these attributes with native directory enumeration.

@@ -13,6 +13,16 @@ public partial class MainWindow
     private FeedUpdateLoop? feedUpdates;
     private long updaterGeneration;
     private string? monitorFolder;
+    private sealed class MonitorMessages
+    {
+        public FindingInbox Findings { get; } = new();
+        public string? Problem;
+        public long ShownDropped;
+        public MonitorRecoveryStatus? ShownRecovery;
+    }
+    private MonitorMessages? monitorMessages;
+    private Task? stoppingMonitor;
+    private readonly DispatcherTimer monitorTimer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private Forms.NotifyIcon? tray;
     private Forms.ContextMenuStrip? trayMenu;
     private readonly DetectionAlerts alerts = new();
@@ -30,6 +40,7 @@ public partial class MainWindow
             });
         };
         alertTimer.Tick += (_, _) => ShowAlert(alerts.Flush(preferences.NotifyDetections));
+        monitorTimer.Tick += (_, _) => FlushMonitorMessages();
         Closing += (_, e) => {
             if (shutdownStarted) return;
             if (!exiting && preferences.KeepInTray && !IsAdmin && tray is not null)
@@ -50,26 +61,57 @@ public partial class MainWindow
     }
     private void BeginMonitor(string folder)
     {
-        if (monitor is not null) throw new InvalidOperationException("Stop the current monitor before starting another.");
+        if (monitor is not null || stoppingMonitor is { IsCompleted: false }) throw new InvalidOperationException("Wait for the current monitor to stop before starting another.");
         if (FolderMonitor.IsWithin(folder, LocalStore.Root)) throw new ArgumentException("Choose a folder outside Sentinel's own storage.");
         folder = FileSafety.NormalizeRegularPath(folder);
-        var generation = ++monitorGeneration;
-        monitor = new(folder, Scanner, finding => PostEngine(() => {
-            if (lifetime.IsCancellationRequested || generation != monitorGeneration) return;
-            var duplicate = engineFindings.FirstOrDefault(x => x.Path == finding.Path && x.ArchiveEntry == finding.ArchiveEntry && x.Sha256 == finding.Sha256 && x.Verdict == finding.Verdict);
-            if (duplicate is not null) return;
+        var messages = new MonitorMessages();
+        monitor = new(folder, () => new FileScanner(feeds.Current, control: new(ScanMode.LowImpact)), messages.Findings.Add,
+            problem => Interlocked.Exchange(ref messages.Problem, problem), [LocalStore.Root]);
+        monitorMessages = messages; monitorFolder = folder; monitorTimer.Start();
+    }
+    private void FlushMonitorMessages()
+    {
+        if (lifetime.IsCancellationRequested || monitorMessages is not { } messages || monitor is not { } active) return;
+        ApplyMonitorMessages(messages, active);
+    }
+    private void ApplyMonitorMessages(MonitorMessages messages, FolderMonitor active)
+    {
+        var added = 0; var detections = 0;
+        foreach (var finding in messages.Findings.Drain())
+        {
+            var duplicate = engineFindings.FirstOrDefault(x => string.Equals(x.Path, finding.Path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
+                && x.ArchiveEntry == finding.ArchiveEntry && string.Equals(x.Sha256, finding.Sha256, StringComparison.OrdinalIgnoreCase) && x.Verdict == finding.Verdict);
+            if (duplicate is not null) continue;
             if (engineFindings.Count >= 2_000)
             {
                 var expendable = engineFindings.FirstOrDefault(x => x.Verdict is not (FileVerdict.KnownThreat or FileVerdict.TestFile));
-                engineFindings.Remove(expendable ?? engineFindings[0]);
                 engineError = "Live findings reached the display limit. Run and save a manual scan for a complete report.";
+                Interlocked.Exchange(ref messages.Problem, engineError);
+                if (expendable is null || finding.Verdict is not (FileVerdict.KnownThreat or FileVerdict.TestFile)) continue;
+                engineFindings.Remove(expendable);
             }
-            engineFindings.Add(finding); StatusText = $"Folder monitor: {finding.Verdict}. Open Sentinel engine to review.";
-            if (finding.Verdict is FileVerdict.KnownThreat or FileVerdict.TestFile) NotifyDetection(1);
-        }), problem => PostEngine(() => {
-            if (!lifetime.IsCancellationRequested && generation == monitorGeneration) { engineError = problem; StatusText = problem; }
-        }), [LocalStore.Root]);
-        monitorFolder = folder;
+            engineFindings.Add(finding); added++;
+            if (finding.Verdict is FileVerdict.KnownThreat or FileVerdict.TestFile) detections++;
+        }
+        if (detections > 0) NotifyDetection(detections);
+        if (added > 0 && !busy) StatusText = $"Folder monitor: {added} new findings to review · {detections} exact detections.";
+        var recovery = active.RecoveryStatus;
+        if (recovery != messages.ShownRecovery)
+        {
+            messages.ShownRecovery = recovery;
+            if (!busy) StatusText = !active.IsRunning ? "Folder monitoring stopped. Review its coverage and restart monitoring."
+                : recovery.Scanning ? "Rechecking the watched folder in Low impact mode…"
+                : recovery.Pending ? "Folder recovery queued. Changed files continue to be checked during the cooldown."
+                : recovery.LastCompleted is not null ? $"Watched folder rechecked: {recovery.Scanned:N0} files · {recovery.Detected} detections · {(recovery.Incomplete ? "coverage gaps — review monitoring details" : "no scan gaps reported")}."
+                : "Folder monitoring is running.";
+        }
+        var problem = Interlocked.Exchange(ref messages.Problem, null);
+        if (messages.Findings.Dropped != messages.ShownDropped)
+        {
+            messages.ShownDropped = messages.Findings.Dropped;
+            problem = $"The monitoring display queue omitted {messages.ShownDropped:N0} findings. Exact detections take priority. Run and save a manual scan for a report.";
+        }
+        if (problem is not null) { engineError = problem; if (!busy) StatusText = problem; }
     }
     private void StartFeedUpdates()
     {
@@ -80,6 +122,7 @@ public partial class MainWindow
             await feeds.UpdateAsync(http, settings, deadline.Token);
         }, state => PostEngine(() => {
             if (lifetime.IsCancellationRequested || generation != updaterGeneration) return;
+            if (state.NextAttempt is not null && !state.Failed) monitor?.RequestRecovery();
             if (!busy && state.NextAttempt is not null)
                 StatusText = state.Failed ? "Automatic feed check failed. The verified cache remains available; check the server and retry manually." : "Signed feed checked. Next automatic check in six hours.";
         }));
@@ -125,8 +168,8 @@ public partial class MainWindow
     private async Task ShutdownSession()
     {
         if (shutdownStarted) return; shutdownStarted = true;
-        lifetime.Cancel(); operation?.Cancel(); DisposeTray();
-        try { await StopFeedUpdates(); if (monitor is not null) { var active = monitor; monitor = null; await active.DisposeAsync(); } }
+        lifetime.Cancel(); operation?.Cancel(); monitorTimer.Stop(); monitorMessages = null; DisposeTray();
+        try { await StopFeedUpdates(); await StopMonitor(); }
         catch (Exception) { /* Shutdown still releases the window and network resources. */ }
         if (operationFinished is { } pending) await pending.Task;
         http.Dispose(); Close();
@@ -153,6 +196,6 @@ public partial class MainWindow
             await StopFeedUpdates(); StartFeedUpdates();
             if (page is "Sentinel engine" or "Settings") ShowPage(page);
         }), true), Button("Exit Sentinel", () => { exiting = true; Close(); })));
-        body.Children.Add(Note("Resume does not scan existing files and is skipped in elevated sessions. Windows notification settings can suppress alerts; local findings stay visible. Exit Sentinel requests cancellation and waits for the active operation to settle. Closing to the tray leaves scans and monitoring running."));
+        body.Children.Add(Note("Resume starts a bounded scan of existing files in Low impact mode and is skipped in elevated sessions. Windows notification settings can suppress alerts; local findings stay visible. Exit Sentinel requests cancellation and waits for the active operation to settle. Closing to the tray leaves scans and monitoring running."));
     }
 }

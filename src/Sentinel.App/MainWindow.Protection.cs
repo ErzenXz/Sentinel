@@ -15,7 +15,6 @@ public partial class MainWindow
     private readonly ObservableCollection<FileFinding> engineFindings = [];
     private ProtectionSettings protection = new();
     private FolderMonitor? monitor;
-    private long monitorGeneration;
     private ScheduleStatus? scheduleStatus;
     private static string ReportsDirectory => Path.Combine(LocalStore.Root, "reports");
     private string? engineError;
@@ -119,13 +118,20 @@ public partial class MainWindow
         limits.Children.Add(Text(FeedDescription(), 12, true));
         limits.Children.Add(Note("Checks SHA-256 locally; no AI request is made. Limits: 256 MB per file, 50,000 filesystem entries, 2,000 displayed findings. ZIP: 2,048 entries per tree, 32 MB per entry, 128 MB expanded, 200:1 ratio, two nested levels. Unreadable, skipped and over-budget items remain incomplete. Review patterns are not known malware."));
         var watch = AdvancedCard(monitor?.IsRunning == true ? "Folder monitoring · running" : "Folder monitoring · off");
-        watch.Children.Add(Text("Optional, lightweight monitoring while Sentinel is open. New and changed files are scanned after writes settle. Existing files need a manual scan. This cannot block execution before a scan, and it is not system-wide real-time protection. Findings require your review; nothing is deleted automatically.", 13));
-        watch.Children.Add(Text(monitor?.IsRunning == true ? $"Monitoring is on. Checked: {monitor.CompletedScans}; queued: {monitor.PendingFiles}; missed events: {monitor.DroppedEvents}. Run a manual folder scan after missed events." : "Monitoring is off.", 12, true, monitor?.DroppedEvents > 0 ? "Warning" : null));
+        watch.Children.Add(Text("Checks existing files when you start, then new and changed files after writes settle. Folder moves and missed changes queue a recovery scan with a five-minute budget. Uses Low impact mode and excludes Sentinel storage. Gaps and limits stay visible. Monitoring stops when you exit; it cannot block execution before a scan. Nothing is removed automatically.", 13));
+        var monitorStatus = Text(MonitorDescription(), 12, true);
+        watch.Children.Add(monitorStatus);
+        var statusTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        statusTimer.Tick += (_, _) => monitorStatus.Text = MonitorDescription();
+        monitorStatus.Loaded += (_, _) => statusTimer.Start(); monitorStatus.Unloaded += (_, _) => statusTimer.Stop();
         watch.Children.Add(Row(Button("Choose folder & start…", () => {
             if (monitor is not null) { StatusText = "Stop the current monitor before starting another."; return; }
             var dialog = new OpenFolderDialog(); if (dialog.ShowDialog() != true) return;
             try { BeginMonitor(dialog.FolderName); ShowPage("Sentinel engine"); StatusText = "Folder monitoring started. Use Exit Sentinel to stop it in tray mode."; }
             catch (Exception ex) { StatusText = ex.Message; }
+        }), Button("Recheck watched folder", () => {
+            if (monitor?.RequestRecovery() != true) { StatusText = "Start folder monitoring first."; return; }
+            StatusText = "Recovery requested. Rechecks share one worker and wait at least 30 seconds between scans.";
         }), Button("Stop monitoring", () => _ = StopMonitor())));
         var schedule = AdvancedCard("Schedule a daily folder scan");
         schedule.Children.Add(Text(scheduleStatus is null ? "Schedule status has not been checked." : !scheduleStatus.Exists ? "No daily scan is registered for this user." : $"{scheduleStatus.State} · next {scheduleStatus.NextRun} · last {scheduleStatus.LastRun} · result {scheduleStatus.LastResult}", 12, true));
@@ -185,7 +191,7 @@ public partial class MainWindow
             } catch (Exception ex) { StatusText = ex.Message; }
         }), Button("Update signed feed", () => _ = Run("Update Sentinel threat feed", async token => {
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromMinutes(2));
-            await feeds.UpdateAsync(http, protection, deadline.Token); engineError = null; if (page is "Sentinel engine" or "Overview" or "Settings") ShowPage(page);
+            await feeds.UpdateAsync(http, protection, deadline.Token); engineError = null; monitor?.RequestRecovery(); if (page is "Sentinel engine" or "Overview" or "Settings") ShowPage(page);
         }, audit: true))));
         feed.Children.Add(Note("Updates reject wrong signatures, expired lists, rollback, and changed content under an existing sequence. A failed update retains the last verified list. An expired cache still matches previously known hashes and is clearly marked stale."));
     }
@@ -194,10 +200,39 @@ public partial class MainWindow
         if (lifetime.IsCancellationRequested || Dispatcher.HasShutdownStarted) return;
         try { Dispatcher.BeginInvoke(action); } catch (InvalidOperationException) { }
     }
-    private async Task StopMonitor()
+    private string MonitorDescription()
     {
-        if (monitor is null) return;
-        var active = monitor; monitor = null; monitorGeneration++; monitorFolder = null; await active.DisposeAsync(); if (page == "Sentinel engine") ShowPage(page); StatusText = "Folder monitoring stopped.";
+        if (monitor?.IsRunning != true) return "Monitoring is off.";
+        var state = monitor.RecoveryStatus;
+        var recoveryText = state.Scanning ? "Rechecking folder…" : state.Pending ? "Recovery queued" : state.LastCompleted is null ? "Initial scan queued" : $"Last recheck {state.LastCompleted.Value.ToLocalTime():t}: {state.Scanned:N0} files, {state.Detected} detections, {state.Skipped + state.Errors} incomplete";
+        if (state.LimitReached || state.FindingsTruncated) recoveryText += "; scan/display limit reached";
+        if (state.Canceled) recoveryText += "; time budget reached — run a manual scan";
+        return $"Changed files checked: {monitor.CompletedScans:N0} · queued: {monitor.PendingFiles} · missed events: {monitor.DroppedEvents:N0} · omitted display findings: {monitorMessages?.Findings.Dropped ?? 0:N0}\n{recoveryText}";
+    }
+    private Task StopMonitor()
+    {
+        if (stoppingMonitor is { IsCompleted: false }) return stoppingMonitor;
+        if (monitor is null) return Task.CompletedTask;
+        var active = monitor; var messages = monitorMessages; monitor = null; monitorFolder = null; monitorTimer.Stop(); monitorMessages = null;
+        if (!lifetime.IsCancellationRequested) StatusText = "Stopping folder monitoring…";
+        return stoppingMonitor = FinishStoppingMonitor(active, messages);
+    }
+    private async Task FinishStoppingMonitor(FolderMonitor active, MonitorMessages? messages)
+    {
+        try { await active.DisposeAsync(); }
+        catch (Exception)
+        {
+            monitor = active;
+            engineError = "Folder monitoring did not stop cleanly. Exit and restart Sentinel before monitoring again.";
+            if (!lifetime.IsCancellationRequested) StatusText = engineError;
+            return;
+        }
+        if (lifetime.IsCancellationRequested) return;
+        if (messages is not null)
+        {
+            do { ApplyMonitorMessages(messages, active); } while (messages.Findings.Count > 0);
+        }
+        if (page == "Sentinel engine") ShowPage(page); StatusText = "Folder monitoring stopped. Retained findings remain available for review.";
     }
     private void StartEngineScan(string path) => _ = Run("Sentinel local scan", async token => {
         var control = new ScanControl(scanMode); manualScan = control;
