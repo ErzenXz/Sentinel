@@ -242,6 +242,7 @@
             </Style.Triggers>
         </Style>
         <Style TargetType="DataGrid">
+            <Setter Property="IsSynchronizedWithCurrentItem" Value="False"/>
             <Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="AutoGenerateColumns" Value="False"/><Setter Property="IsReadOnly" Value="True"/><Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="GridLinesVisibility" Value="None"/><Setter Property="HeadersVisibility" Value="Column"/><Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Background" Value="{DynamicResource CardSurface}"/><Setter Property="RowBackground" Value="{DynamicResource CardSurface}"/><Setter Property="AlternatingRowBackground" Value="{DynamicResource AlternateRowSurface}"/>

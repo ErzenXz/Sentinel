@@ -187,7 +187,7 @@ internal static class Program
         Stage("Rendering all pages at both window sizes");
         foreach (var (width, height) in new[] { (1200d, 820d), (960d, 680d) })
         {
-            window.Width = width; window.Height = height; window.UpdateLayout(); await Drain();
+            await SetSize(window, width, height);
             foreach (var page in pages)
             {
                 await Navigate(window, page);
@@ -195,7 +195,8 @@ internal static class Program
                 {
                     var table = Descendants<DataGrid>(Field<StackPanel>(window, "PageBody")).First();
                     Check("Scanner has retained fixture evidence", table.Items.Count == 3);
-                    Check("Quarantine is unavailable without an eligible selection", !FindButton(window, "Quarantine selected…").IsEnabled);
+                    Check("Scanner starts without an implicit selection or enabled selection actions", table.SelectedItem is null
+                        && !FindButton(window, "Quarantine selected…").IsEnabled && !FindButton(window, "Copy SHA-256").IsEnabled);
                     table.SelectedIndex = 0; await Drain();
                     var admin = IsAdministrator();
                     Check("Quarantine eligibility respects the actual runner privilege", FindButton(window, "Quarantine selected…").IsEnabled == !admin);
@@ -217,7 +218,7 @@ internal static class Program
                 Capture(window, Slug(page) + "-" + (int)width, true);
             }
         }
-        window.Width = 1200; window.Height = 820;
+        await SetSize(window, 1200, 820);
         await Navigate(window, "File scanner");
         await Expand(window, "Folder monitoring · off"); Capture(window, "monitoring-details", true);
         await Navigate(window, "Settings");
@@ -235,10 +236,16 @@ internal static class Program
         await Task.Delay(2000); await Drain();
         using var process = Process.GetCurrentProcess(); process.Refresh();
         var start = Stopwatch.GetTimestamp(); var cpu = process.TotalProcessorTime;
-        await Task.Delay(3000); process.Refresh();
+        var dispatches = new long[16];
+        DispatcherHookEventHandler onDispatch = (_, e) => { var priority = (int)e.Operation.Priority; if (priority >= 0 && priority < dispatches.Length) dispatches[priority]++; };
+        window.Dispatcher.Hooks.OperationStarted += onDispatch;
+        try { await Task.Delay(3000); }
+        finally { window.Dispatcher.Hooks.OperationStarted -= onDispatch; }
+        process.Refresh();
         idle = new { description = "Three-second idle UI fixture sample after verification and collection; excludes production PowerShell reads, Defender, AI, on-access drivers and real workloads. Not a comparative AV benchmark.",
             seconds = Stopwatch.GetElapsedTime(start).TotalSeconds, cpuMilliseconds = (process.TotalProcessorTime - cpu).TotalMilliseconds,
-            workingSetBytes = process.WorkingSet64, privateBytes = process.PrivateMemorySize64, managedBytes = GC.GetTotalMemory(false), processors = Environment.ProcessorCount };
+            workingSetBytes = process.WorkingSet64, privateBytes = process.PrivateMemorySize64, managedBytes = GC.GetTotalMemory(false), processors = Environment.ProcessorCount,
+            dispatcherOperations = dispatches.Select((count, priority) => new { priority = ((DispatcherPriority)priority).ToString(), count }).Where(x => x.count > 0).ToArray() };
         Check("Rendering/navigation never requested an OS write through the injected runner", runner.UnexpectedCalls.IsEmpty);
     }
     private static async Task Expand(MainWindow window, string title)
@@ -248,6 +255,15 @@ internal static class Program
         ((IExpandCollapseProvider)peer.GetPattern(PatternInterface.ExpandCollapse)!).Expand();
         await Drain(); expander.BringIntoView(new Rect(0, 0, 1, 40)); await Drain();
         Check("Accessible disclosure expands " + title, expander.IsExpanded);
+    }
+    private static async Task SetSize(MainWindow window, double width, double height)
+    {
+        // Hosted displays can cap tracking at 1024x768. Enforce only this fixture's
+        // requested size so both production inspector arrangements actually render.
+        window.MinWidth = width; window.MinHeight = height;
+        window.Width = width; window.Height = height; window.UpdateLayout(); await Drain();
+        Check("Native window reaches " + width + " × " + height,
+            Math.Abs(window.ActualWidth - width) < 1 && Math.Abs(window.ActualHeight - height) < 1);
     }
     private static async Task VerifyScanControls(MainWindow window, string profile)
     {
