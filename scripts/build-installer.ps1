@@ -22,11 +22,12 @@ if (-not (Test-Path -LiteralPath $compiler)) {
     $process = Start-Process -FilePath $download -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER',"/DIR=`"$tools`"") -Wait -PassThru
     if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $compiler)) { throw 'Verified compiler installation failed.' }
 }
-$compilerVersion = (Get-Item -LiteralPath $compiler).VersionInfo.FileVersion
-if ($compilerVersion -notlike "$($toolchain.version)*") { throw 'Pinned compiler version mismatch.' }
 $compilerSignature = Get-AuthenticodeSignature -LiteralPath $compiler
 $publisher = [regex]::Escape($toolchain.publisher)
 if ($compilerSignature.Status -ne 'Valid' -or $compilerSignature.SignerCertificate.Subject -notmatch "(^|,\s*)CN=$publisher(,|$)") { throw 'Installed compiler Authenticode verification failed.' }
+# ISCC's executable resource version differs from the actual compiler engine.
+$compilerVersion = (& $compiler --version | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $compilerVersion -ne $toolchain.version) { throw "Pinned compiler engine version mismatch: $compilerVersion" }
 foreach ($assembly in @('Sentinel','Sentinel.Scanner')) {
     $runtimeOptions = (Get-Content -LiteralPath (Join-Path $payload "$assembly.runtimeconfig.json") -Raw | ConvertFrom-Json).runtimeOptions
     if ($runtimeOptions.configProperties.'System.IO.Compression.UseStrictValidation' -ne $true -or $null -eq $runtimeOptions.includedFrameworks) { throw 'Invalid packaged runtime.' }

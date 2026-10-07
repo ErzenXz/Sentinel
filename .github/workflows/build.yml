@@ -9,6 +9,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
         include:
           - runtime: win-x64
@@ -43,6 +44,7 @@ jobs:
           if-no-files-found: warn
   ui:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - architecture: X64
