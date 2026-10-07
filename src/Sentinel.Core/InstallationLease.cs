@@ -9,7 +9,15 @@ public static class InstallationLease
 {
     private static readonly object Gate = new();
     private static Mutex? running;
-    public static string CurrentProfile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sentinel");
+    public static string CurrentProfile
+    {
+        get
+        {
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify);
+            if (!Path.IsPathFullyQualified(local)) throw new InvalidOperationException("Windows could not locate your local user profile. Reopen Sentinel from your signed-in Windows session.");
+            return Path.Combine(local, "Sentinel");
+        }
+    }
     public static string ProfileKey(string profile) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(profile))).ToLowerInvariant();
     public static string RunningName(string profile) => @"Global\Sentinel.Run.v1." + ProfileKey(profile);
     public static string SetupName(string profile) => @"Global\Sentinel.Setup.v1." + ProfileKey(profile);

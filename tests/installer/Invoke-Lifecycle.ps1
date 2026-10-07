@@ -68,9 +68,16 @@ function VerifyPreserved {
 }
 try {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $identity.Name.Split('\')[-1] -notmatch '^SnÜ[0-9a-f]{12}$') { throw 'Lifecycle child requires its disposable hosted CI fixture account' }
     $standardUser = -not [Security.Principal.WindowsPrincipal]::new($identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     Check $standardUser 'Installer and uninstaller run as a standard user without UAC'
-    $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+    # A secondary-logon account has not run the interactive Windows shell yet.
+    # Initialize only its own standard known folders, as a first login would.
+    $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData, [Environment+SpecialFolderOption]::Create)
+    Check (-not [string]::IsNullOrWhiteSpace($local) -and [IO.Path]::IsPathRooted($local)) 'Windows resolves a fully qualified local user folder'
+    foreach ($folder in @([Environment+SpecialFolder]::Programs, [Environment+SpecialFolder]::DesktopDirectory, [Environment+SpecialFolder]::Startup)) {
+        $null = [Environment]::GetFolderPath($folder, [Environment+SpecialFolderOption]::Create)
+    }
     $appRoot = Join-Path $local 'Programs/Sentinel'
     $profile = Join-Path $local 'Sentinel'
     Check ($local -match 'SnÜ') 'Unicode user profile exercises the cross-language UTF-8 installation guard'

@@ -10,7 +10,7 @@ namespace Sentinel.App;
 internal static class LocalStore
 {
     private static string? temporaryRoot;
-    private static string DefaultRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sentinel");
+    private static string DefaultRoot => InstallationLease.CurrentProfile;
     public static string Root => temporaryRoot ?? DefaultRoot;
     // Only the friend test assembly uses this before creating a window. There is no
     // environment variable or product command-line option that redirects a profile.
